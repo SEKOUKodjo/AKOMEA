@@ -1,0 +1,130 @@
+{% extends 'depenses/base.html' %}
+
+{% block title %}Ajouter une Dépense - EcoTrack Local{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 offset-lg-2">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    <i class="fas fa-plus-circle"></i> Ajouter une Dépense
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.type_depense.id_for_label }}" class="form-label">
+                            <i class="fas fa-tag"></i> Type de dépense *
+                        </label>
+                        {{ form.type_depense }}
+                        {% if form.type_depense.errors %}
+                            <div class="text-danger small mt-1">{{ form.type_depense.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.quartier.id_for_label }}" class="form-label">
+                            <i class="fas fa-map-marker-alt"></i> Quartier *
+                        </label>
+                        {{ form.quartier }}
+                        {% if form.quartier.errors %}
+                            <div class="text-danger small mt-1">{{ form.quartier.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.prix.id_for_label }}" class="form-label">
+                                <i class="fas fa-money-bill-wave"></i> Prix (FCFA) *
+                            </label>
+                            {{ form.prix }}
+                            {% if form.prix.errors %}
+                                <div class="text-danger small mt-1">{{ form.prix.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.date.id_for_label }}" class="form-label">
+                                <i class="fas fa-calendar"></i> Date *
+                            </label>
+                            {{ form.date }}
+                            {% if form.date.errors %}
+                                <div class="text-danger small mt-1">{{ form.date.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.lieu.id_for_label }}" class="form-label">
+                            <i class="fas fa-location-dot"></i> Lieu précis *
+                        </label>
+                        {{ form.lieu }}
+                        {% if form.lieu.errors %}
+                            <div class="text-danger small mt-1">{{ form.lieu.errors }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">
+                            Exemple: Restaurant universitaire de Ngoa-Ekellé, Marché de Mokolo, etc.
+                        </small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.commentaire.id_for_label }}" class="form-label">
+                            <i class="fas fa-comment"></i> Commentaire (optionnel)
+                        </label>
+                        {{ form.commentaire }}
+                        {% if form.commentaire.errors %}
+                            <div class="text-danger small mt-1">{{ form.commentaire.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.photo.id_for_label }}" class="form-label">
+                            <i class="fas fa-camera"></i> Photo justificative (optionnel)
+                        </label>
+                        {{ form.photo }}
+                        {% if form.photo.errors %}
+                            <div class="text-danger small mt-1">{{ form.photo.errors }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">
+                            Formats acceptés: JPG, PNG. Taille max: 5MB
+                        </small>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> 
+                        <strong>Rappel:</strong> Les champs marqués d'un astérisque (*) sont obligatoires.
+                        Le prix doit être supérieur à 0 et la date ne peut pas être dans le futur.
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-check"></i> Enregistrer la Dépense
+                        </button>
+                        <a href="{% url 'accueil' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Annuler
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Conseils -->
+        <div class="card mt-4">
+            <div class="card-header bg-success text-white">
+                <i class="fas fa-lightbulb"></i> Conseils pour une bonne collecte
+            </div>
+            <div class="card-body">
+                <ul class="mb-0">
+                    <li>Saisissez le prix exact tel qu'indiqué sur le ticket ou l'affichage</li>
+                    <li>Précisez le lieu exact pour faciliter les comparaisons</li>
+                    <li>Ajoutez une photo si possible (ticket, menu, prix affiché)</li>
+                    <li>Ajoutez un commentaire pour donner du contexte (heure de pointe, promotion, etc.)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

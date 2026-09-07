@@ -1,0 +1,183 @@
+{% extends 'depenses/base.html' %}
+
+{% block title %}Synchronisation Kobo - EcoTrack Local{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 offset-lg-2">
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <h4 class="mb-0">
+                    <i class="fas fa-exclamation-triangle"></i> Synchronisation COMPLÈTE avec KoboToolbox
+                </h4>
+            </div>
+            <div class="card-body text-center py-5">
+                <div class="mb-4">
+                    <i class="fas fa-redo-alt fa-5x text-warning mb-4"></i>
+                    <h3 class="text-warning">⚠️ ATTENTION : Opération DESTRUCTIVE</h3>
+                    <p class="lead">
+                        Cette synchronisation va <strong class="text-danger">SUPPRIMER TOUTES</strong> les données existantes
+                        et les remplacer par les nouvelles données de KoboToolbox.
+                    </p>
+                    <div class="alert alert-danger">
+                        <i class="fas fa-skull-crossbones"></i>
+                        <strong>Cette action est irréversible !</strong><br>
+                        Tous les sondages et dépenses Kobo existants seront perdus.
+                    </div>
+                </div>
+                
+                <div id="sync-status" class="mb-4" style="display: none;">
+                    <div class="spinner-border text-warning" role="status">
+                        <span class="visually-hidden">Synchronisation...</span>
+                    </div>
+                    <p class="mt-2" id="sync-message">Suppression et importation en cours...</p>
+                </div>
+                
+                <div id="sync-result" class="alert" style="display: none;"></div>
+                
+                <div class="d-grid gap-2 col-md-6 mx-auto">
+                    <button id="sync-button" class="btn btn-danger btn-lg px-5 py-3">
+                        <i class="fas fa-bomb"></i> SYNCHRONISER ET REMPLACER
+                    </button>
+                    
+                    <a href="{% url 'dashboard' %}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Annuler et retourner
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header bg-info text-white">
+                <i class="fas fa-info-circle"></i> Que va-t-il se passer ?
+            </div>
+            <div class="card-body">
+                <h5>Étapes de la synchronisation :</h5>
+                <ol>
+                    <li><strong class="text-danger">ÉTAPE 1 : SUPPRESSION</strong>
+                        <ul>
+                            <li>Tous les sondages Kobo existants seront supprimés</li>
+                            <li>Toutes les dépenses liées aux sondages seront supprimées</li>
+                        </ul>
+                    </li>
+                    <li><strong class="text-warning">ÉTAPE 2 : TÉLÉCHARGEMENT</strong>
+                        <ul>
+                            <li>Connexion à KoboToolbox</li>
+                            <li>Téléchargement de toutes les nouvelles soumissions</li>
+                        </ul>
+                    </li>
+                    <li><strong class="text-success">ÉTAPE 3 : IMPORTATION</strong>
+                        <ul>
+                            <li>Import de tous les nouveaux sondages</li>
+                            <li>Création des dépenses associées</li>
+                        </ul>
+                    </li>
+                </ol>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-lightbulb"></i>
+                    <strong>Note :</strong> Les dépenses manuelles (sans lien avec Kobo) ne seront pas affectées.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const syncButton = document.getElementById('sync-button');
+    const syncStatus = document.getElementById('sync-status');
+    const syncResult = document.getElementById('sync-result');
+    const syncMessage = document.getElementById('sync-message');
+    
+    syncButton.addEventListener('click', function() {
+        // Demande de confirmation
+        if (!confirm('⚠️ ATTENTION !\n\nCette action va SUPPRIMER TOUTES les données Kobo existantes et les remplacer par les nouvelles données.\n\nÊtes-vous ABSOLUMENT SÛR de vouloir continuer ?')) {
+            return;
+        }
+        
+        // Désactiver le bouton
+        syncButton.disabled = true;
+        syncButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Suppression et importation...';
+        
+        // Afficher le statut
+        syncStatus.style.display = 'block';
+        syncResult.style.display = 'none';
+        
+        // Appel AJAX
+        fetch('/import-kobo/', {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Cacher le statut
+            syncStatus.style.display = 'none';
+            
+            // Afficher le résultat
+            syncResult.style.display = 'block';
+            
+            if (data.success) {
+                syncResult.className = 'alert alert-success';
+                let resultHtml = `
+                    <h4><i class="fas fa-check-circle"></i> Synchronisation COMPLÈTE réussie !</h4>
+                    <p>${data.message}</p>
+                    <hr>
+                    <p><strong>Résumé de l'opération :</strong></p>
+                `;
+                
+                if (data.anciens_sondages > 0) {
+                    resultHtml += `
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>${data.anciens_sondages} anciens sondages</strong> ont été supprimés et remplacés par 
+                            <strong>${data.nouveaux_sondages} nouveaux sondages</strong>.
+                        </div>
+                    `;
+                }
+                
+                resultHtml += `
+                    <a href="{% url 'dashboard' %}" class="btn btn-success">
+                        <i class="fas fa-chart-bar"></i> Voir les nouvelles statistiques
+                    </a>
+                `;
+                
+                syncResult.innerHTML = resultHtml;
+            } else {
+                syncResult.className = 'alert alert-danger';
+                syncResult.innerHTML = `
+                    <h4><i class="fas fa-times-circle"></i> Erreur de synchronisation</h4>
+                    <p>${data.message}</p>
+                    <button onclick="location.reload()" class="btn btn-warning mt-2">
+                        <i class="fas fa-redo"></i> Réessayer
+                    </button>
+                `;
+            }
+            
+            // Réactiver le bouton
+            syncButton.disabled = false;
+            syncButton.innerHTML = '<i class="fas fa-bomb"></i> SYNCHRONISER À NOUVEAU';
+        })
+        .catch(error => {
+            syncStatus.style.display = 'none';
+            syncResult.style.display = 'block';
+            syncResult.className = 'alert alert-danger';
+            syncResult.innerHTML = `
+                <h4><i class="fas fa-times-circle"></i> Erreur réseau</h4>
+                <p>Une erreur s'est produite lors de la synchronisation.</p>
+                <button onclick="location.reload()" class="btn btn-warning">
+                    <i class="fas fa-redo"></i> Réessayer
+                </button>
+            `;
+            
+            syncButton.disabled = false;
+            syncButton.innerHTML = '<i class="fas fa-bomb"></i> Réessayer';
+        });
+    });
+});
+</script>
+{% endblock %}
+{% endblock %}

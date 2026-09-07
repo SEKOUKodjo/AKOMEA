@@ -1,0 +1,183 @@
+{% extends 'depenses/base.html' %}
+
+{% block title %}Accueil - EcoTrack Local{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="row mb-5">
+    <div class="col-12">
+        <div class="card text-center" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
+            <div class="card-body py-5">
+                <h1 class="display-4 mb-3">
+                    <i class="fas fa-chart-line"></i> 
+                    Bienvenue sur EcoTrack Local
+                </h1>
+                <p class="lead mb-4">
+                    Système participatif de suivi des coûts de vie étudiants à Yaoundé
+                </p>
+                <div class="d-flex justify-content-center gap-3 flex-wrap">
+                    <a href="{% url 'ajouter_depense' %}" class="btn btn-light btn-lg">
+                        <i class="fas fa-plus-circle"></i> Ajouter une dépense
+                    </a>
+                    <a href="{% url 'dashboard' %}" class="btn btn-outline-light btn-lg">
+                        <i class="fas fa-chart-bar"></i> Voir les statistiques
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Statistiques Rapides -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="stat-card" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+            <i class="fas fa-receipt"></i>
+            <h3>{{ stats.total_depenses }}</h3>
+            <p class="mb-0">Dépenses Collectées</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+            <i class="fas fa-map-marker-alt"></i>
+            <h3>{{ stats.total_quartiers }}</h3>
+            <p class="mb-0">Quartiers Couverts</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
+            <i class="fas fa-tags"></i>
+            <h3>{{ stats.total_types }}</h3>
+            <p class="mb-0">Types de Dépenses</p>
+        </div>
+    </div>
+</div>
+
+<!-- Dernière Dépense -->
+{% if stats.derniere_depense %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-clock"></i> Dernière Dépense Ajoutée
+            </div>
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-3">
+                        <h4 class="text-primary mb-0">
+                            {{ stats.derniere_depense.prix|floatformat:0 }} FCFA
+                        </h4>
+                    </div>
+                    <div class="col-md-3">
+                        <p class="mb-0">
+                            <strong><i class="fas fa-tag"></i> Type:</strong><br>
+                            {{ stats.derniere_depense.type_depense.nom }}
+                        </p>
+                    </div>
+                    <div class="col-md-3">
+                        <p class="mb-0">
+                            <strong><i class="fas fa-map-marker-alt"></i> Quartier:</strong><br>
+                            {{ stats.derniere_depense.quartier.nom }}
+                        </p>
+                    </div>
+                    <div class="col-md-3">
+                        <p class="mb-0">
+                            <strong><i class="fas fa-calendar"></i> Date:</strong><br>
+                            {{ stats.derniere_depense.date|date:"d/m/Y" }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Section Fonctionnalités -->
+<div class="row mt-5">
+    <div class="col-12">
+        <h2 class="text-center mb-4">
+            <i class="fas fa-star"></i> Fonctionnalités
+        </h2>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card h-100 text-center">
+            <div class="card-body">
+                <i class="fas fa-plus-circle fa-3x text-primary mb-3"></i>
+                <h5 class="card-title">Collecte de Données</h5>
+                <p class="card-text">
+                    Saisissez facilement vos dépenses quotidiennes avec validation automatique
+                </p>
+                <a href="{% url 'ajouter_depense' %}" class="btn btn-primary btn-sm">
+                    Ajouter <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card h-100 text-center">
+            <div class="card-body">
+                <i class="fas fa-list fa-3x text-success mb-3"></i>
+                <h5 class="card-title">Visualisation</h5>
+                <p class="card-text">
+                    Consultez toutes les dépenses collectées avec filtres par quartier et type
+                </p>
+                <a href="{% url 'liste_depenses' %}" class="btn btn-success btn-sm">
+                    Voir la liste <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card h-100 text-center">
+            <div class="card-body">
+                <i class="fas fa-chart-bar fa-3x text-warning mb-3"></i>
+                <h5 class="card-title">Analyse</h5>
+                <p class="card-text">
+                    Explorez les statistiques et graphiques pour comprendre les tendances
+                </p>
+                <a href="{% url 'dashboard' %}" class="btn btn-warning btn-sm">
+                    Dashboard <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card h-100 text-center">
+            <div class="card-body">
+                <i class="fas fa-balance-scale fa-3x text-danger mb-3"></i>
+                <h5 class="card-title">Comparaison</h5>
+                <p class="card-text">
+                    Comparez les coûts entre différents quartiers de Yaoundé
+                </p>
+                <a href="{% url 'comparaison' %}" class="btn btn-danger btn-sm">
+                    Comparer <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Appel à l'Action -->
+<div class="row mt-5">
+    <div class="col-12">
+        <div class="card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border: none;">
+            <div class="card-body text-center py-4">
+                <h3 class="mb-3">
+                    <i class="fas fa-users"></i> Participez à la Collecte !
+                </h3>
+                <p class="lead mb-3">
+                    Chaque contribution compte pour obtenir des données fiables sur les coûts de vie étudiants
+                </p>
+                <a href="{% url 'ajouter_depense' %}" class="btn btn-light btn-lg">
+                    <i class="fas fa-plus-circle"></i> Contribuer Maintenant
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

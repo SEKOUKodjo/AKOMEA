@@ -1,0 +1,220 @@
+{% extends 'depenses/base.html' %}
+
+{% block title %}Liste des Dépenses - EcoTrack Local{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    <i class="fas fa-list"></i> Liste des Dépenses
+                    <span class="badge bg-primary float-end">{{ depenses.count }} dépense(s)</span>
+                </h4>
+            </div>
+            <div class="card-body">
+                <!-- Filtres -->
+                <form method="get" class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <label class="form-label">
+                            <i class="fas fa-map-marker-alt"></i> Filtrer par Quartier
+                        </label>
+                        <select name="quartier" class="form-select">
+                            <option value="">Tous les quartiers</option>
+                            {% for q in quartiers %}
+                                <option value="{{ q.id }}" {% if request.GET.quartier == q.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ q.nom }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <label class="form-label">
+                            <i class="fas fa-tag"></i> Filtrer par Type
+                        </label>
+                        <select name="type" class="form-select">
+                            <option value="">Tous les types</option>
+                            {% for t in types %}
+                                <option value="{{ t.id }}" {% if request.GET.type == t.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ t.nom }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <label class="form-label">&nbsp;</label>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-filter"></i> Appliquer les Filtres
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Tableau des dépenses -->
+                {% if depenses %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-bordered">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th><i class="fas fa-calendar"></i> Date</th>
+                                    <th><i class="fas fa-tag"></i> Type</th>
+                                    <th><i class="fas fa-map-marker-alt"></i> Quartier</th>
+                                    <th><i class="fas fa-location-dot"></i> Lieu</th>
+                                    <th><i class="fas fa-money-bill-wave"></i> Prix</th>
+                                    <th><i class="fas fa-comment"></i> Commentaire</th>
+                                    <th><i class="fas fa-camera"></i> Photo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for depense in depenses %}
+                                <tr>
+                                    <td>{{ depense.date|date:"d/m/Y" }}</td>
+                                    <td>
+                                        {% if depense.type_depense.categorie == 'TRANSPORT' %}
+                                            <span class="badge bg-info">
+                                                <i class="fas fa-bus"></i> {{ depense.type_depense.nom }}
+                                            </span>
+                                        {% elif depense.type_depense.categorie == 'RESTAURATION' %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-utensils"></i> {{ depense.type_depense.nom }}
+                                            </span>
+                                        {% elif depense.type_depense.categorie == 'LOGEMENT' %}
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-home"></i> {{ depense.type_depense.nom }}
+                                            </span>
+                                        {% elif depense.type_depense.categorie == 'SERVICES' %}
+                                            <span class="badge bg-primary">
+                                                <i class="fas fa-cogs"></i> {{ depense.type_depense.nom }}
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ depense.type_depense.nom }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <i class="fas fa-map-pin text-danger"></i> 
+                                        <strong>{{ depense.quartier.nom }}</strong>
+                                    </td>
+                                    <td>{{ depense.lieu|truncatewords:8 }}</td>
+                                    <td>
+                                        <strong class="text-success fs-5">{{ depense.prix|floatformat:0 }} FCFA</strong>
+                                    </td>
+                                    <td>
+                                        {% if depense.commentaire %}
+                                            <small>{{ depense.commentaire|truncatewords:15 }}</small>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if depense.photo %}
+                                            <a href="{{ depense.photo.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-image"></i> Voir
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Statistiques rapides du filtre -->
+                    {% if depenses.count > 0 %}
+                    <div class="row mt-4">
+                        <div class="col-md-4">
+                            <div class="card text-center" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white;">
+                                <div class="card-body">
+                                    <h5>Total affiché</h5>
+                                    <h2>{{ depenses.count }}</h2>
+                                    <p class="mb-0">dépense(s)</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card text-center" style="background: linear-gradient(135deg, #f093fb, #f5576c); color: white;">
+                                <div class="card-body">
+                                    <h5>Prix moyen</h5>
+                                    <h2>
+                                        {% widthratio depenses|length 1 depenses.count as avg %}
+                                        {{ depenses.0.prix|floatformat:0 }}
+                                    </h2>
+                                    <p class="mb-0">FCFA</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card text-center" style="background: linear-gradient(135deg, #4facfe, #00f2fe); color: white;">
+                                <div class="card-body">
+                                    <h5>Quartiers</h5>
+                                    <h2>{{ quartiers.count }}</h2>
+                                    <p class="mb-0">disponible(s)</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                {% else %}
+                    <div class="alert alert-warning text-center py-5">
+                        <i class="fas fa-exclamation-triangle fa-3x mb-3 text-warning"></i>
+                        <h4>Aucune dépense trouvée</h4>
+                        <p class="mb-3">
+                            {% if request.GET.quartier or request.GET.type %}
+                                Aucune dépense ne correspond à vos filtres. Essayez de modifier vos critères de recherche.
+                            {% else %}
+                                La liste est vide. Commencez par ajouter des dépenses pour voir les données ici.
+                            {% endif %}
+                        </p>
+                        <div class="d-flex gap-2 justify-content-center flex-wrap">
+                            <a href="{% url 'ajouter_depense' %}" class="btn btn-primary btn-lg">
+                                <i class="fas fa-plus-circle"></i> Ajouter une dépense
+                            </a>
+                            {% if request.GET.quartier or request.GET.type %}
+                            <a href="{% url 'liste_depenses' %}" class="btn btn-secondary btn-lg">
+                                <i class="fas fa-times"></i> Réinitialiser les filtres
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Instructions -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle"></i> Astuces
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-filter"></i> Utiliser les Filtres</h6>
+                        <p class="small">
+                            Utilisez les menus déroulants pour filtrer les dépenses par quartier ou type.
+                            Cela vous permet de comparer facilement les prix dans différentes zones.
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-camera"></i> Photos Justificatives</h6>
+                        <p class="small">
+                            Cliquez sur "Voir" dans la colonne Photo pour consulter les justificatifs.
+                            Les photos aident à valider l'authenticité des données collectées.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

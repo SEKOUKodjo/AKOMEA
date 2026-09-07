@@ -1,0 +1,33 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# ===== Environnements virtuels =====
+venv/
+env/
+.venv/
+ENV/
+
+# ===== Django =====
+*.log
+db.sqlite3
+db.sqlite3-journal
+media/
+
+# ===== Secrets / configuration locale =====
+.env
+.env.*
+!.env.example
+
+# ===== Rapports générés =====
+rapport_*.pdf
+
+# ===== Éditeurs / OS =====
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

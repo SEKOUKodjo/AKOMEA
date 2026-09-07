@@ -1,0 +1,73 @@
+{% extends 'depenses/base.html' %}
+
+{% block title %}Configuration du Rapport - EcoTrack Local{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 offset-lg-2">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    <i class="fas fa-file-pdf"></i> Configuration du Rapport PDF
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="GET" action="{% url 'rapport_pdf' %}">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">
+                            <i class="fas fa-user-tie"></i> Professeur encadrant
+                        </label>
+                        <input 
+                            type="text" 
+                            name="professeur" 
+                            class="form-control"
+                            value="Prof. [Nom du Professeur]"
+                            placeholder="Ex: Prof. Jean DUPONT"
+                        >
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">
+                            <i class="fas fa-users"></i> Étudiants (séparés par des virgules)
+                        </label>
+                        <textarea 
+                            name="etudiants" 
+                            class="form-control"
+                            rows="3"
+                            placeholder="Ex: Étudiant 1, Étudiant 2, Étudiant 3, Étudiant 4"
+                        >Étudiant 1, Étudiant 2, Étudiant 3, Étudiant 4</textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">
+                            <i class="fas fa-graduation-cap"></i> Promotion
+                        </label>
+                        <input 
+                            type="text" 
+                            name="promotion" 
+                            class="form-control"
+                            value="AS3 2025"
+                            placeholder="Ex: AS3 2025"
+                        >
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        Le rapport sera généré au format PDF avec toutes les statistiques de collecte.
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-download"></i> Générer le Rapport PDF
+                        </button>
+                        <a href="{% url 'accueil' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Annuler
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
