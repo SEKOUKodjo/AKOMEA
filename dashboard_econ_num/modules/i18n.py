@@ -11,7 +11,7 @@ TR = {
     "nav_reco": ("Recommandations", "Recommendations"),
     "nav_carte": ("Carte", "Map"),
     "nav_auteur": ("Auteur", "Author"),
-    "brand": ("SAD Economie Numerique", "Digital Economy DSS"),
+    "brand": ("Observatoire de l'Economie Numerique", "Digital Economy Observatory"),
     "republic": ("REPUBLIQUE TOGOLAISE", "TOGOLESE REPUBLIC"),
     "motto": ("TRAVAIL - LIBERTE - PATRIE", "WORK - LIBERTY - HOMELAND"),
     "ministry": ("MINISTERE DE L'ECONOMIE NUMERIQUE ET DE LA TRANSFORMATION DIGITALE",
@@ -137,6 +137,22 @@ TR = {
     "ind_score": ("Score de priorite", "Priority score"),
     "ind_pop": ("Population 2026", "Population 2026"),
     "ind_nmm": ("Nombre d'agents mobile money", "Number of mobile money agents"),
+
+    # ------- controles de carte -------
+    "map_show": ("Afficher sur la carte", "Show on the map"),
+    "map_type": ("Type d'infrastructure", "Infrastructure type"),
+    "map_labels": ("Afficher les etiquettes (noms)", "Show labels (names)"),
+    "map_fond": ("Fond : nombre d'agences par prefecture",
+                 "Base layer: number of agencies per prefecture"),
+    "opt_none": ("Aucune (fond seul)", "None (base layer only)"),
+    "opt_all_infra": ("Toutes les infrastructures", "All infrastructure"),
+    "opt_togocom": ("Agences Togocom", "Togocom agencies"),
+    "opt_moov": ("Agences Moov", "Moov agencies"),
+    "opt_dc": ("Datacenters", "Data centers"),
+    "opt_mm": ("Agents mobile money", "Mobile money agents"),
+    "s_wzc": ("Zones blanches (cantons sans agent)", "White zones (cantons with no agent)"),
+    "map_none": ("Aucun point a afficher pour cette selection.",
+                 "No points to display for this selection."),
 
     # ------- recommandations -------
     "reco_badge": ("Simulateur d'investissement — choisissez un territoire et un objectif",

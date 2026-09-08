@@ -167,7 +167,7 @@ app_ui = ui.page_fluid(
             ),
             class_="content"),
         class_="app-body"),
-    title="SAD Economie Numerique — Togo",
+    title="Observatoire de l'Economie Numerique — Togo",
 )
 
 
@@ -332,6 +332,47 @@ def server(input, output, session):
                       class_="ph-head")
         return ui.div(head, *body, class_="panel")
 
+    # couleurs / libelles des couches d'infrastructure sur les cartes
+    INFRA_GROUPS = [("Togocom", T.GREEN, "opt_togocom"),
+                    ("Moov", T.YELLOW, "opt_moov"),
+                    ("Datacenter", T.RED, "opt_dc")]
+
+    def infra_series(pts, which):
+        """Couches de points (une par type) selon le type choisi ('all' ou un type)."""
+        out = []
+        for op, color, key in INFRA_GROUPS:
+            if which not in ("all", op):
+                continue
+            d = pts[pts.operateur == op] if op != "Datacenter" else pts[pts.type_infra == "Datacenter"]
+            data = [{"name": r.nom, "lon": float(r.lon), "lat": float(r.lat)}
+                    for r in d.itertuples() if pd.notna(r.lon)]
+            if data:
+                out.append({"name": t(key), "color": color, "data": data})
+        return out
+
+    def map_controls(type_id, label_id, choices):
+        return ui.div(
+            ui.input_select(type_id, t("map_type"), choices, selected="all"),
+            ui.input_checkbox(label_id, t("map_labels"), False),
+            style="display:flex;gap:18px;align-items:end;margin-bottom:8px;flex-wrap:wrap;")
+
+    def infra_choices():
+        return {"all": t("opt_all_infra"), "Togocom": t("opt_togocom"),
+                "Moov": t("opt_moov"), "Datacenter": t("opt_dc")}
+
+    def legend_strip(series):
+        """Legende HTML claire (pastille coloree + nom + effectif) au-dessus de la carte."""
+        if not series:
+            return ui.HTML(f"<div style='margin:2px 0 8px;font-size:12px;color:#6b7b76'>"
+                           f"{t('map_none')}</div>")
+        items = "".join(
+            f"<span style='display:inline-flex;align-items:center;margin-right:18px;"
+            f"font-size:12.5px;font-weight:600'><span style='width:13px;height:13px;"
+            f"border-radius:50%;background:{s['color']};display:inline-block;margin-right:6px;"
+            f"border:1px solid #fff;box-shadow:0 0 0 1px #cbd5d0'></span>{s['name']} "
+            f"({nf(len(s['data']))})</span>" for s in series)
+        return ui.HTML(f"<div style='margin:2px 0 8px'>{items}</div>")
+
     # ==================================================================
     #  ACCUEIL
     # ==================================================================
@@ -419,7 +460,9 @@ def server(input, output, session):
     def tab_infra():
         return ui.TagList(
             badge(t("infra_badge", s=unit_label(sel(), L()))),
-            panel("map-location-dot", "p_infra_map", ui.output_ui("infra_map")),
+            panel("map-location-dot", "p_infra_map",
+                  map_controls("infra_type", "infra_labels", infra_choices()),
+                  ui.output_ui("infra_map")),
             ui.div(panel("building", "p_infra_bar", ui.output_ui("infra_bar")),
                    panel("clock-rotate-left", "p_infra_time", ui.output_ui("infra_timeline")),
                    class_="grid-2"),
@@ -429,14 +472,13 @@ def server(input, output, session):
     @render.ui
     def infra_map():
         pts = geo_filter(PTS, sel())
-        colors = {"Togocom": T.GREEN, "Moov": T.YELLOW, "Datacenter": T.RED}
-        points = [{"name": f"{r.nom} ({r.operateur})", "lon": float(r.lon), "lat": float(r.lat),
-                   "color": colors.get(r.operateur, T.GREEN_DARK)}
-                  for r in pts.itertuples() if pd.notna(r.lon)]
+        series = infra_series(pts, input.infra_type())
         vals = [{"key": r.key, "name": r.prefecture, "value": float(r.n_agences)}
                 for r in PREF.itertuples()]
-        return T.highmap(vals, subtitle=t("p_infra_map"), points=points,
-                         value_suffix=" " + t("th_agences").lower(), height=520)
+        return ui.TagList(legend_strip(series), T.highmap(
+            vals, subtitle=t("map_fond"), point_series=series,
+            show_labels=input.infra_labels(), fond_name=t("map_fond"),
+            value_suffix=" " + t("th_agences").lower(), height=500))
 
     @render.ui
     def infra_bar():
@@ -568,7 +610,10 @@ def server(input, output, session):
         return ui.TagList(
             kpis,
             ui.div(panel("chart-column", "p_cov_bar", ui.output_ui("cov_bar")),
-                   panel("map-location-dot", "p_cov_map", ui.output_ui("cov_map")), class_="grid-2"),
+                   panel("map-location-dot", "p_cov_map",
+                         ui.div(ui.input_checkbox("cov_labels", t("map_labels"), False),
+                                style="margin-bottom:6px;"),
+                         ui.output_ui("cov_map")), class_="grid-2"),
             panel("list", "p_cov_table", ui.output_ui("cov_table")),
         )
 
@@ -591,12 +636,15 @@ def server(input, output, session):
     def cov_map():
         d = cant_filter(sel())
         d = d[(~d.couvert_mm) & d.lon.notna()]
-        points = [{"name": f"{r.canton} ({r.prefecture})", "lon": float(r.lon),
-                   "lat": float(r.lat), "color": T.RED} for r in d.itertuples()]
+        data = [{"name": f"{r.canton} ({r.prefecture})", "lon": float(r.lon),
+                 "lat": float(r.lat)} for r in d.itertuples()]
+        series = [{"name": t("s_wzc"), "color": T.RED, "data": data}] if data else []
         vals = [{"key": r.key, "name": r.prefecture, "value": float(r.n_mobile_money)}
                 for r in PREF.itertuples()]
-        return T.highmap(vals, subtitle=t("cov_map_sub"), points=points,
-                         value_suffix=" " + t("th_mm").lower(), height=380)
+        return ui.TagList(legend_strip(series), T.highmap(
+            vals, subtitle=t("cov_map_sub"), point_series=series,
+            show_labels=input.cov_labels(), fond_name=t("th_mm"),
+            value_suffix=" " + t("th_mm").lower(), height=360))
 
     @render.ui
     def cov_table():
@@ -798,9 +846,13 @@ def server(input, output, session):
         inds = {"mm_pour_1000": t("ind_mm1000"), "agences_pour_100k": t("ind_ag100k"),
                 "score_priorite": t("ind_score"), "population": t("ind_pop"),
                 "n_mobile_money": t("ind_nmm")}
+        overlay = {"none": t("opt_none"), "all": t("opt_all_infra"),
+                   "Togocom": t("opt_togocom"), "Moov": t("opt_moov"),
+                   "Datacenter": t("opt_dc")}
         return panel("map", "p_carte", ui.div(
             ui.input_select("c_ind", t("c_indic"), inds, selected="mm_pour_1000"),
-            ui.input_checkbox("c_pts", t("c_points"), False),
+            ui.input_select("c_overlay", t("map_show"), overlay, selected="none"),
+            ui.input_checkbox("c_labels", t("map_labels"), False),
             style="display:flex;gap:18px;align-items:end;margin-bottom:8px;flex-wrap:wrap"),
             ui.output_ui("carte_map"))
 
@@ -812,14 +864,12 @@ def server(input, output, session):
         scale = T.PRIORITY_SCALE if ind == "score_priorite" else T.GREEN_SCALE
         vals = [{"key": r.key, "name": r.prefecture, "value": float(getattr(r, ind))}
                 for r in PREF.itertuples()]
-        points = None
-        if input.c_pts():
-            colors = {"Togocom": T.GREEN, "Moov": T.YELLOW, "Datacenter": T.RED}
-            points = [{"name": f"{r.nom} ({r.operateur})", "lon": float(r.lon), "lat": float(r.lat),
-                       "color": colors.get(r.operateur, T.GREEN_DARK)}
-                      for r in PTS.itertuples() if pd.notna(r.lon)]
-        return T.highmap(vals, subtitle="", scale=scale, points=points,
-                         value_suffix=suff.get(ind, ""), height=560)
+        ov = input.c_overlay()
+        series = infra_series(PTS, ov) if ov != "none" else []
+        strip = legend_strip(series) if ov != "none" else ui.HTML("")
+        return ui.TagList(strip, T.highmap(
+            vals, subtitle="", scale=scale, point_series=series,
+            show_labels=input.c_labels(), value_suffix=suff.get(ind, ""), height=540))
 
     # ==================================================================
     #  AUTEUR

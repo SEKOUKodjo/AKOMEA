@@ -114,16 +114,26 @@ def highchart(config: dict, height: int = 320) -> HTML:
 
 
 def highmap(values: list, title: str = "", subtitle: str = "",
-            scale=None, points: list = None, value_suffix: str = "",
-            geo_url: str = "geo/geo_prefectures.json",
+            scale=None, points: list = None, point_series: list = None,
+            value_suffix: str = "", show_labels: bool = False,
+            fond_name: str = "", geo_url: str = "geo/geo_prefectures.json",
             height: int = 520) -> HTML:
-    """Choroplethe Highmaps (prefectures) + points optionnels."""
+    """Choroplethe Highmaps (prefectures) + couches de points nommees.
+
+    point_series : liste de {"name","color","data":[{"name","lon","lat"}]}.
+    Chaque couche apparait dans la LEGENDE (clic pour afficher/masquer) : la
+    carte indique donc explicitement ou se trouve chaque type d'infrastructure.
+    show_labels : affiche le nom de chaque point directement sur la carte.
+    """
     cid = "hm_" + uuid.uuid4().hex[:10]
     scale = scale or GREEN_SCALE
+    if point_series is None:
+        point_series = ([{"name": "Sites", "color": RED, "data": points}]
+                        if points else [])
     payload = json.dumps({
-        "values": values, "title": title, "subtitle": subtitle,
-        "scale": scale, "points": points or [], "suffix": value_suffix,
-        "geo": geo_url,
+        "values": values, "title": title, "subtitle": subtitle, "scale": scale,
+        "series": point_series, "suffix": value_suffix, "labels": bool(show_labels),
+        "fond": fond_name or title, "geo": geo_url,
     }, ensure_ascii=False)
     html = f"""
     <div id="{cid}" class="hc-chart" style="height:{height}px;width:100%;"></div>
@@ -133,23 +143,28 @@ def highmap(values: list, title: str = "", subtitle: str = "",
         if(typeof Highcharts==='undefined'||!Highcharts.mapChart){{setTimeout(draw,80);return;}}
         function build(geo){{
           var series=[{{
-            mapData:geo, joinBy:['_key','key'], data:P.values, name:P.title,
-            states:{{hover:{{color:'{YELLOW}'}}}},
-            dataLabels:{{enabled:false}},
-            borderColor:'#ffffff', borderWidth:0.5,
+            mapData:geo, joinBy:['_key','key'], data:P.values, name:P.fond,
+            showInLegend:false, states:{{hover:{{color:'{YELLOW}'}}}},
+            enableMouseTracking:true, borderColor:'#ffffff', borderWidth:0.5,
             tooltip:{{pointFormat:'<b>{{point.name}}</b><br/>{{point.value:,.2f}}'+P.suffix}}
           }}];
-          if(P.points&&P.points.length){{
-            series.push({{type:'mappoint',name:'Sites',color:'{RED}',
-              data:P.points, marker:{{radius:4,symbol:'circle'}},
-              tooltip:{{pointFormat:'<b>{{point.name}}</b>'}} }});
-          }}
+          P.series.forEach(function(s){{
+            series.push({{type:'mappoint', name:s.name, color:s.color, data:s.data,
+              showInLegend:false,
+              marker:{{radius:5,symbol:'circle',lineColor:'#ffffff',lineWidth:1}},
+              dataLabels:{{enabled:P.labels, format:'{{point.name}}', style:{{
+                fontSize:'10px', fontWeight:'600', textOutline:'2px #ffffff'}}}},
+              tooltip:{{headerFormat:'', pointFormat:'<b>{{point.name}}</b><br/>'+s.name}} }});
+          }});
           Highcharts.mapChart("{cid}",{{
             chart:{{backgroundColor:'transparent'}},
             title:{{text:P.title}}, subtitle:{{text:P.subtitle}},
             mapNavigation:{{enabled:true,buttonOptions:{{verticalAlign:'bottom'}}}},
             colorAxis:{{stops:P.scale,minColor:'#eef7f2'}},
-            legend:{{layout:'vertical',align:'right',verticalAlign:'middle'}},
+            legend:{{enabled:P.series.length>0, align:'left', verticalAlign:'top',
+                     floating:true, backgroundColor:'rgba(255,255,255,.85)',
+                     borderColor:'#dfe6e3', borderWidth:1, borderRadius:6,
+                     itemStyle:{{fontSize:'11px'}}, title:{{text:''}}}},
             series:series
           }});
         }}
