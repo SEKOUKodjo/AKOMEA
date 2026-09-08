@@ -9,6 +9,8 @@ Chargement optimise : l'application lit uniquement des .parquet pre-agreges
 (voir prepare_data.py). Aucun calcul lourd au demarrage.
 """
 import json
+import re
+import unicodedata
 from pathlib import Path
 
 import pandas as pd
@@ -26,10 +28,19 @@ REG = pd.read_parquet(DATA / "regions.parquet")
 CANT = pd.read_parquet(DATA / "cantons.parquet")
 PTS = pd.read_parquet(DATA / "points_infra.parquet")
 MM = pd.read_parquet(DATA / "points_mobile_money.parquet")
+HIER = pd.read_parquet(DATA / "hierarchie.parquet")
 META = json.loads((DATA / "meta.json").read_text())
+POP_LOOKUP = json.loads((DATA / "pop_lookup.json").read_text())
+COMMUNE_POP = POP_LOOKUP["commune"]
+CANTON_POP = POP_LOOKUP["canton"]
+FACTEUR = POP_LOOKUP["facteur_projection"]
 
 REGIONS = ["Toutes"] + sorted(PREF["region"].dropna().unique().tolist())
 FCFA = R.FCFA_PER_EUR
+LEVELS = ["region", "prefecture", "commune", "canton"]
+COLS = {"region": "region_nom_bdd", "prefecture": "prefecture_nom_bdd",
+        "commune": "commune_nom_bdd", "canton": "canton_nom_bdd"}
+PREF_REMAP = {"MO": "PLAINE DU MO", "KPENDJAL OUEST": "NAKI OUEST"}
 
 
 def nf(v, dec=0):
@@ -37,6 +48,83 @@ def nf(v, dec=0):
     if v is None or (isinstance(v, float) and pd.isna(v)):
         return "—"
     return (f"{v:,.{dec}f}").replace(",", " ").replace(".", ",")
+
+
+def _norm(s):
+    s = "".join(c for c in unicodedata.normalize("NFD", str(s))
+                if unicodedata.category(c) != "Mn").upper()
+    return re.sub(r"\s+", " ", re.sub(r"[^A-Z0-9]", " ", s)).strip()
+
+
+def _pkey(x):
+    return PREF_REMAP.get(_norm(x), _norm(x))
+
+
+def geo_filter(df, sel):
+    """Filtre un jeu de points selon la selection region/prefecture/commune/canton."""
+    m = pd.Series(True, index=df.index)
+    for lvl in LEVELS:
+        if sel.get(lvl, "Toutes") != "Toutes":
+            m = m & (df[COLS[lvl]] == sel[lvl])
+    return df[m]
+
+
+def unit_population(sel):
+    """Population projetee 2026 de l'unite selectionnee (None si inconnue)."""
+    if sel.get("canton", "Toutes") != "Toutes":
+        v = CANTON_POP.get(f"{_pkey(sel['prefecture'])}||{_norm(sel['canton'])}")
+        return round(v * FACTEUR) if v else None
+    if sel.get("commune", "Toutes") != "Toutes":
+        v = COMMUNE_POP.get(_norm(sel["commune"]))
+        return round(v * FACTEUR) if v else None
+    if sel.get("prefecture", "Toutes") != "Toutes":
+        r = PREF[PREF.prefecture == sel["prefecture"]]
+        return int(r["population"].iloc[0]) if len(r) else None
+    if sel.get("region", "Toutes") != "Toutes":
+        r = REG[REG.region == sel["region"]]
+        return int(r["population"].iloc[0]) if len(r) else None
+    return int(PREF["population"].sum())
+
+
+def unit_label(sel):
+    names = {"canton": "Canton", "commune": "Commune",
+             "prefecture": "Prefecture", "region": "Region"}
+    for lvl in reversed(LEVELS):
+        if sel.get(lvl, "Toutes") != "Toutes":
+            return f"{names[lvl]} : {sel[lvl]}"
+    return "Tout le Togo"
+
+
+def cascade_opts(col, filters):
+    """Options d'un niveau selon les filtres parents (depuis la hierarchie)."""
+    d = HIER
+    for c, v in filters.items():
+        if v and v != "Toutes":
+            d = d[d[c] == v]
+    vals = sorted(x for x in d[col].dropna().unique()
+                  if x and str(x) not in ("nan", "Nsp"))
+    return ["Toutes"] + vals
+
+
+def unit_counts(sel):
+    """(population, agents mm, agences telecom, datacenters) pour l'unite."""
+    mm = geo_filter(MM, sel)
+    pt = geo_filter(PTS, sel)
+    return (unit_population(sel), int(len(mm)),
+            int((pt.type_infra == "Agence telecom").sum()),
+            int((pt.type_infra == "Datacenter").sum()))
+
+
+def cant_filter(sel):
+    """Filtre la table cantons (noms GeoJSON) via une comparaison normalisee."""
+    d = CANT
+    if sel.get("region", "Toutes") != "Toutes":
+        d = d[d.region.apply(_norm) == _norm(sel["region"])]
+    if sel.get("prefecture", "Toutes") != "Toutes":
+        d = d[d.prefecture.apply(_pkey) == _pkey(sel["prefecture"])]
+    if sel.get("canton", "Toutes") != "Toutes":
+        d = d[d.canton.apply(_norm) == _norm(sel["canton"])]
+    return d
 
 
 # ==========================================================================
@@ -106,6 +194,8 @@ def sidebar():
         ui.h4("🔎 NIVEAU D'ANALYSE"),
         ui.input_select("f_region", "Region", REGIONS, selected="Toutes"),
         ui.input_select("f_pref", "Prefecture", ["Toutes"], selected="Toutes"),
+        ui.input_select("f_commune", "Commune", ["Toutes"], selected="Toutes"),
+        ui.input_select("f_canton", "Canton / localite", ["Toutes"], selected="Toutes"),
         ui.input_action_button("reset", "Tout le Togo", class_="btn",
                                style=f"width:100%;background:{T.YELLOW};"
                                      f"border:none;font-weight:800;color:{T.INK};"
@@ -158,27 +248,46 @@ def server(input, output, session):
         ui.update_navset("tab", selected=input.active_tab())
         await session.send_custom_message("reflow", {})
 
-    # ------- filtres -------
+    # ------- filtres en cascade : region > prefecture > commune > canton -------
     @reactive.effect
     @reactive.event(input.f_region)
-    def _upd_pref():
-        reg = input.f_region()
-        if reg == "Toutes":
-            opts = ["Toutes"] + sorted(PREF["prefecture"].tolist())
-        else:
-            opts = ["Toutes"] + sorted(
-                PREF[PREF.region == reg]["prefecture"].tolist())
-        ui.update_select("f_pref", choices=opts, selected="Toutes")
+    def _c_region():
+        ui.update_select("f_pref", choices=cascade_opts(
+            "prefecture", {"region": input.f_region()}), selected="Toutes")
+        ui.update_select("f_commune", choices=["Toutes"], selected="Toutes")
+        ui.update_select("f_canton", choices=["Toutes"], selected="Toutes")
+
+    @reactive.effect
+    @reactive.event(input.f_pref)
+    def _c_pref():
+        ui.update_select("f_commune", choices=cascade_opts(
+            "commune", {"region": input.f_region(),
+                        "prefecture": input.f_pref()}), selected="Toutes")
+        ui.update_select("f_canton", choices=["Toutes"], selected="Toutes")
+
+    @reactive.effect
+    @reactive.event(input.f_commune)
+    def _c_commune():
+        ui.update_select("f_canton", choices=cascade_opts(
+            "canton", {"region": input.f_region(), "prefecture": input.f_pref(),
+                       "commune": input.f_commune()}), selected="Toutes")
 
     @reactive.effect
     @reactive.event(input.reset)
     def _reset():
         ui.update_select("f_region", selected="Toutes")
         ui.update_select("f_pref", choices=["Toutes"], selected="Toutes")
+        ui.update_select("f_commune", choices=["Toutes"], selected="Toutes")
+        ui.update_select("f_canton", choices=["Toutes"], selected="Toutes")
+
+    @reactive.calc
+    def sel():
+        return {"region": input.f_region(), "prefecture": input.f_pref(),
+                "commune": input.f_commune(), "canton": input.f_canton()}
 
     @reactive.calc
     def scope():
-        """DataFrame prefectures filtre selon la selection."""
+        """DataFrame prefectures filtre (pour les graphiques de comparaison)."""
         df = PREF
         if input.f_region() != "Toutes":
             df = df[df.region == input.f_region()]
@@ -188,24 +297,17 @@ def server(input, output, session):
 
     @reactive.calc
     def scope_label():
-        if input.f_pref() != "Toutes":
-            return f"Prefecture : {input.f_pref()}"
-        if input.f_region() != "Toutes":
-            return f"Region : {input.f_region()}"
-        return "Tout le Togo"
+        return unit_label(sel())
 
     # ==================================================================
     #  ONGLET ACCUEIL
     # ==================================================================
     @render.ui
     def tab_accueil():
-        d = scope()
-        pop = int(d["population"].sum())
-        n_ag = int(d["n_agences"].sum())
-        n_mm = int(d["n_mobile_money"].sum())
-        n_dc = int(d["n_datacenter"].sum())
-        mm1000 = round(n_mm / pop * 1000, 2) if pop else 0
-        ag100k = round(n_ag / pop * 1e5, 2) if pop else 0
+        s = sel()
+        pop, n_mm, n_ag, n_dc = unit_counts(s)
+        mm1000 = round(n_mm / pop * 1000, 2) if pop else None
+        pop_txt = nf(pop) if pop else "n.d."
 
         kpis = ui.HTML(f"""
         <div class="kpi-row">
@@ -213,11 +315,11 @@ def server(input, output, session):
             <div class="l">Agents mobile money</div><div class="s">Points de service</div></div>
           <div class="kpi green2"><div class="v">{nf(n_ag)}</div>
             <div class="l">Agences telecoms</div><div class="s">Togocom + Moov</div></div>
-          <div class="kpi yellow"><div class="v">{nf(mm1000,2)}</div>
+          <div class="kpi yellow"><div class="v">{nf(mm1000,2) if mm1000 is not None else 'n.d.'}</div>
             <div class="l">Agents / 1 000 hab.</div><div class="s">Inclusion financiere</div></div>
           <div class="kpi grey"><div class="v">{nf(n_dc)}</div>
             <div class="l">Datacenters</div><div class="s">Centres de donnees</div></div>
-          <div class="kpi green"><div class="v">{nf(pop)}</div>
+          <div class="kpi green"><div class="v">{pop_txt}</div>
             <div class="l">Population {META['annee_pop']}</div><div class="s">Estimation</div></div>
           <div class="kpi red"><div class="v">{nf(META['n_zones_blanches'])}</div>
             <div class="l">Zones blanches</div><div class="s">Cantons sans agent</div></div>
@@ -253,7 +355,7 @@ def server(input, output, session):
 
     @render.ui
     def acc_ag_op():
-        d = scope()
+        d = geo_filter(PTS, sel())
         return T.highchart({
             "chart": {"type": "pie"},
             "title": {"text": None},
@@ -261,9 +363,9 @@ def server(input, output, session):
             "plotOptions": {"pie": {"innerSize": "55%", "dataLabels":
                 {"format": "{point.name}: {point.y}"}}},
             "series": [{"name": "Agences", "colorByPoint": True, "data": [
-                {"name": "Togocom", "y": int(d["n_togocom"].sum()), "color": T.GREEN},
-                {"name": "Moov", "y": int(d["n_moov"].sum()), "color": T.YELLOW},
-                {"name": "Datacenters", "y": int(d["n_datacenter"].sum()), "color": T.RED},
+                {"name": "Togocom", "y": int((d.operateur == "Togocom").sum()), "color": T.GREEN},
+                {"name": "Moov", "y": int((d.operateur == "Moov").sum()), "color": T.YELLOW},
+                {"name": "Datacenters", "y": int((d.type_infra == "Datacenter").sum()), "color": T.RED},
             ]}],
         }, height=300)
 
@@ -313,10 +415,7 @@ def server(input, output, session):
 
     @render.ui
     def infra_map():
-        reg = input.f_region()
-        pts = PTS
-        if reg != "Toutes":
-            pts = pts[pts.region_nom_bdd == reg]
+        pts = geo_filter(PTS, sel())
         colors = {"Togocom": T.GREEN, "Moov": T.YELLOW, "Datacenter": T.RED}
         points = [{"name": f"{r.nom} ({r.operateur})", "lon": float(r.lon),
                    "lat": float(r.lat), "color": colors.get(r.operateur, T.GREEN_DARK)}
@@ -328,9 +427,8 @@ def server(input, output, session):
 
     @render.ui
     def infra_bar():
-        d = PTS[PTS.type_infra == "Agence telecom"]
-        if input.f_region() != "Toutes":
-            d = d[d.region_nom_bdd == input.f_region()]
+        d = geo_filter(PTS, sel())
+        d = d[d.type_infra == "Agence telecom"]
         g = (d.groupby(["prefecture_nom_bdd", "operateur"]).size()
              .unstack(fill_value=0))
         for op in ["Togocom", "Moov"]:
@@ -350,9 +448,8 @@ def server(input, output, session):
 
     @render.ui
     def infra_timeline():
-        d = PTS[(PTS.type_infra == "Agence telecom") & PTS.annee.notna()]
-        if input.f_region() != "Toutes":
-            d = d[d.region_nom_bdd == input.f_region()]
+        d = geo_filter(PTS, sel())
+        d = d[(d.type_infra == "Agence telecom") & d.annee.notna()]
         g = d.groupby("annee").size().sort_index()
         g = g.cumsum()
         return T.highchart({
@@ -412,7 +509,7 @@ def server(input, output, session):
 
     @render.ui
     def srv_op():
-        g = MM.groupby("operateur").size().sort_values(ascending=False)
+        g = geo_filter(MM, sel()).groupby("operateur").size().sort_values(ascending=False)
         data = [{"name": k, "y": int(v)} for k, v in g.items()]
         return T.highchart({
             "chart": {"type": "pie"}, "title": {"text": None},
@@ -501,9 +598,8 @@ def server(input, output, session):
 
     @render.ui
     def cov_map():
-        d = CANT[(~CANT.couvert_mm) & CANT.lon.notna()]
-        if input.f_region() != "Toutes":
-            d = d[d.region == input.f_region()]
+        d = cant_filter(sel())
+        d = d[(~d.couvert_mm) & d.lon.notna()]
         points = [{"name": f"{r.canton} ({r.prefecture})", "lon": float(r.lon),
                    "lat": float(r.lat), "color": T.RED} for r in d.itertuples()]
         vals = [{"key": r.key, "name": r.prefecture, "value": float(r.n_mobile_money)}
@@ -513,9 +609,8 @@ def server(input, output, session):
 
     @render.ui
     def cov_table():
-        d = CANT[~CANT.couvert_mm].copy()
-        if input.f_region() != "Toutes":
-            d = d[d.region == input.f_region()]
+        d = cant_filter(sel())
+        d = d[~d.couvert_mm].copy()
         d = d.sort_values(["region", "prefecture", "canton"])
         rows = "".join(f"<tr><td>{r.canton}</td><td>{r.prefecture}</td>"
                        f"<td>{r.region}</td></tr>" for r in d.itertuples())
@@ -589,10 +684,15 @@ def server(input, output, session):
             ui.div(ui.HTML(f"<span class='badge' style='background:{T.GREEN_DARK}'>"
                    "Simulateur d'investissement — choisissez un territoire et un objectif"
                    "</span>"), style="margin-bottom:10px;"),
-            panel("🎛️ Parametres de simulation",
+            panel("🎛️ Territoire cible (region → prefecture → commune → canton)",
                 ui.div(
-                    ui.input_select("r_pref", "Territoire (prefecture)",
-                                    ["Tout le Togo"] + sorted(PREF["prefecture"].tolist())),
+                    ui.input_select("r_region", "Region", REGIONS, selected="Toutes"),
+                    ui.input_select("r_pref", "Prefecture", ["Toutes"], selected="Toutes"),
+                    ui.input_select("r_commune", "Commune", ["Toutes"], selected="Toutes"),
+                    ui.input_select("r_canton", "Canton / localite", ["Toutes"], selected="Toutes"),
+                    style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;")),
+            panel("🎯 Objectifs & couts unitaires",
+                ui.div(
                     ui.input_slider("r_obj_mm", "Objectif : agents mobile money / 1 000 hab.",
                                     1.0, 8.0, 3.0, step=0.5),
                     ui.input_slider("r_obj_ag", "Objectif : agences telecoms / 100 000 hab.",
@@ -608,6 +708,35 @@ def server(input, output, session):
             panel("📋 Plan d'investissement detaille", ui.output_ui("reco_table")),
         )
 
+    # cascade propre a l'onglet recommandations
+    @reactive.effect
+    @reactive.event(input.r_region)
+    def _rc_region():
+        ui.update_select("r_pref", choices=cascade_opts(
+            "prefecture", {"region": input.r_region()}), selected="Toutes")
+        ui.update_select("r_commune", choices=["Toutes"], selected="Toutes")
+        ui.update_select("r_canton", choices=["Toutes"], selected="Toutes")
+
+    @reactive.effect
+    @reactive.event(input.r_pref)
+    def _rc_pref():
+        ui.update_select("r_commune", choices=cascade_opts(
+            "commune", {"region": input.r_region(),
+                        "prefecture": input.r_pref()}), selected="Toutes")
+        ui.update_select("r_canton", choices=["Toutes"], selected="Toutes")
+
+    @reactive.effect
+    @reactive.event(input.r_commune)
+    def _rc_commune():
+        ui.update_select("r_canton", choices=cascade_opts(
+            "canton", {"region": input.r_region(), "prefecture": input.r_pref(),
+                       "commune": input.r_commune()}), selected="Toutes")
+
+    @reactive.calc
+    def rsel():
+        return {"region": input.r_region(), "prefecture": input.r_pref(),
+                "commune": input.r_commune(), "canton": input.r_canton()}
+
     @reactive.calc
     def reco_params():
         return (input.r_obj_mm(), input.r_obj_ag(),
@@ -616,14 +745,19 @@ def server(input, output, session):
     @render.ui
     def reco_result():
         obj_mm, obj_ag, c_mm, c_ag = reco_params()
-        sel = input.r_pref()
-        if sel == "Tout le Togo":
-            pop = int(PREF["population"].sum()); n_mm = int(PREF["n_mobile_money"].sum())
-            n_ag = int(PREF["n_agences"].sum()); titre = "Tout le Togo"
-        else:
-            r = PREF[PREF.prefecture == sel].iloc[0]
-            pop, n_mm, n_ag = int(r.population), int(r.n_mobile_money), int(r.n_agences)
-            titre = f"Prefecture : {sel}"
+        s = rsel()
+        pop, n_mm, n_ag, _ = unit_counts(s)
+        titre = unit_label(s)
+        if not pop:
+            return ui.HTML(f"""
+            <div class="reco-card" style="border-color:{T.RED}">
+              <h3 style="margin:0 0 6px;color:{T.RED}">🎯 {titre}</h3>
+              <p style="font-size:14px">Offre recensee : <b>{nf(n_mm)}</b> agents mobile
+              money, <b>{nf(n_ag)}</b> agences telecoms.</p>
+              <p style="font-size:13px;color:#8c1c2b">La population de reference n'est pas
+              disponible a ce niveau de detail : l'estimation du besoin et du budget
+              n'est calculable qu'a partir de la commune ou de la prefecture. Selectionnez
+              un niveau superieur pour le chiffrage.</p></div>""")
         e = R.compute(pop, n_mm, n_ag, obj_mm, obj_ag, c_mm, c_ag)
         return ui.HTML(f"""
         <div class="reco-card">

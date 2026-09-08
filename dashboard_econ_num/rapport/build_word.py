@@ -342,7 +342,7 @@ h1("11. Architecture technique du tableau de bord")
 for b in [
     "Pretraitement Python (pandas) : nettoyage, fusion, indicateurs, scores — script prepare_data.py.",
     "Donnees pre-agregees stockees en .parquet (moins de 1 Mo) + GeoJSON simplifie : chargement de l'ordre de la seconde, aucun calcul lourd a l'execution.",
-    "Interface Shiny for Python : bandeau et barre de navigation fixes, filtres region/prefecture, 8 onglets thematiques.",
+    "Interface Shiny for Python : bandeau et barre de navigation fixes, filtres en cascade region -> prefecture -> commune -> canton, 8 onglets thematiques.",
     "Visualisations interactives Highcharts / Highmaps embarquees localement (application autonome, sans dependance CDN).",
     "Simulateur d'investissement entierement reactif (FCFA et EUR).",
 ]:

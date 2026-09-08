@@ -41,6 +41,13 @@ FACTEUR_PROJ = (1 + TAUX_CROISSANCE) ** (ANNEE_PROJ - ANNEE_CENSUS)  # ~1,0951
 # 5 regions administratives (modele geoBoundaries : Grand Lome rattache a Maritime)
 REGIONS = {"SAVANES", "KARA", "CENTRALE", "PLATEAUX", "MARITIME"}
 
+# Remaps prefecture (libelle terrain -> cle GeoJSON adm2)
+PREF_REMAP = {"MO": "PLAINE DU MO", "KPENDJAL OUEST": "NAKI OUEST"}
+
+
+def pref_key(name):
+    return PREF_REMAP.get(norm(name), norm(name))
+
 
 # --------------------------------------------------------------------------
 # Utilitaires
@@ -115,6 +122,71 @@ def load_population():
     national = float(raw.iloc[0]["total"])
     print(f"[pop] {len(pref)} prefectures | national RGPH-5 = {national:,.0f}")
     return pref, national
+
+
+def parse_pop_hierarchy():
+    """Parse complet de la population : pays->region->prefecture->commune->canton.
+
+    Retourne un DataFrame (region, prefecture, commune, name, level, total).
+    """
+    raw = pd.read_excel(RAW / "population_togo_2022.xlsx", header=None)
+    raw = raw.iloc[7:].reset_index(drop=True)
+    raw.columns = ["name", "total", "m", "f"] + list(raw.columns[4:])
+    raw = raw[["name", "total"]].copy()
+    raw["name"] = raw["name"].astype(str).str.strip()
+    raw["total"] = pd.to_numeric(raw["total"], errors="coerce")
+    raw = raw[raw["total"].notna()].reset_index(drop=True)
+    names, tot = raw["name"].tolist(), raw["total"].tolist()
+    n = len(names)
+    is_commune = lambda x: bool(re.search(r" \d+$", x))
+    cur = {"region": None, "prefecture": None, "commune": None}
+    rows = []
+    for i, (nm, tv) in enumerate(zip(names, tot)):
+        if nm == "TOGO":
+            lvl = "country"
+        elif nm in REGIONS:
+            lvl = "region"; cur.update(region=nm, prefecture=None, commune=None)
+        elif is_commune(nm):
+            lvl = "commune"; cur["commune"] = nm
+        else:
+            nxt = names[i + 1] if i + 1 < n else ""
+            if is_commune(nxt) and re.sub(r" \d+$", "", nxt) == nm:
+                lvl = "prefecture"; cur.update(prefecture=nm, commune=None)
+            else:
+                lvl = "canton"
+        rows.append((cur["region"], cur["prefecture"], cur["commune"], nm, lvl, tv))
+    return pd.DataFrame(rows, columns=["region", "prefecture", "commune",
+                                       "name", "level", "total"])
+
+
+def build_pop_lookups(P):
+    """Dictionnaires de population aux niveaux commune et canton.
+
+    - commune : cle = norm(commune)  (libelle globalement unique, ex. 'GOLFE 4')
+    - canton  : cle = 'pref_key||norm(canton)'  (le nom de canton peut se repeter)
+    """
+    commune = {}
+    for r in P[P.level == "commune"].itertuples():
+        commune[norm(r.name)] = int(r.total)
+    canton = {}
+    for r in P[P.level == "canton"].itertuples():
+        if r.prefecture:
+            canton[f"{pref_key(r.prefecture)}||{norm(r.name)}"] = int(r.total)
+    return commune, canton
+
+
+def build_geo_hierarchy(pts, mm):
+    """Arborescence region/prefecture/commune/canton issue des donnees terrain."""
+    cols = GEO_COLS
+    g = pd.concat([pts[cols], mm[cols]], ignore_index=True).copy()
+    g.columns = ["region", "prefecture", "commune", "canton"]
+    for c in g.columns:
+        g[c] = g[c].astype(str).str.strip()
+    bad = {"", "nan", "Nsp", "NSP", "None"}
+    g = g[~g["region"].isin(bad) & ~g["prefecture"].isin(bad)]
+    g = g.drop_duplicates().sort_values(cols and ["region", "prefecture",
+                                                  "commune", "canton"])
+    return g.reset_index(drop=True)
 
 
 # --------------------------------------------------------------------------
@@ -241,10 +313,8 @@ def build_prefecture_table(pts, mm, pop, national):
     df = df.sort_values("score_priorite", ascending=False).reset_index(drop=True)
     df["rang_priorite"] = df.index + 1
 
-    # Cle de jointure avec le GeoJSON des prefectures (adm2). Remaps pour les
-    # rares libelles divergents entre donnees terrain et geoBoundaries.
-    remap = {"MO": "PLAINE DU MO", "KPENDJAL OUEST": "NAKI OUEST"}
-    df["key"] = df["prefecture"].apply(lambda x: remap.get(norm(x), norm(x)))
+    # Cle de jointure avec le GeoJSON des prefectures (adm2).
+    df["key"] = df["prefecture"].apply(pref_key)
     return df
 
 
@@ -317,6 +387,17 @@ def main():
     df_pref = build_prefecture_table(pts, mm, pop, national)
     df_reg = build_region_table(df_pref)
     df_cant = build_cantons(mm)
+
+    # Hierarchie geographique (filtres jusqu'au canton) + population commune/canton
+    hier = build_geo_hierarchy(pts, mm)
+    P = parse_pop_hierarchy()
+    commune_pop, canton_pop = build_pop_lookups(P)
+    hier.to_parquet(OUT / "hierarchie.parquet", index=False)
+    (OUT / "pop_lookup.json").write_text(json.dumps(
+        {"commune": commune_pop, "canton": canton_pop,
+         "facteur_projection": FACTEUR_PROJ}, ensure_ascii=False))
+    print(f"[hier] {len(hier)} combinaisons | communes pop={len(commune_pop)} "
+          f"| cantons pop={len(canton_pop)}")
 
     # --- ecriture parquet ---
     pts.to_parquet(OUT / "points_infra.parquet", index=False)

@@ -281,7 +281,7 @@ txt(s, Inches(8.0), Inches(1.6), Inches(5.0), Inches(0.5), "Ce que livre l'outil
     size=17, color=RED, bold=True)
 bullets(s, Inches(8.0), Inches(2.2), Inches(5.0), Inches(3.8), [
     "Diagnostic clair et territorialise.",
-    "8 onglets interactifs, filtres region/prefecture.",
+    "8 onglets, filtres jusqu au canton.",
     "Cartes Highmaps & graphiques Highcharts.",
     "Simulateur d'investissement FCFA/EUR.",
     "Application autonome, chargement rapide.",
