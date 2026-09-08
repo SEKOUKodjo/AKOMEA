@@ -7,8 +7,14 @@ interactifs) charges via CDN.
 import json
 import uuid
 
+from faicons import icon_svg
 from htmltools import HTML, Tag
 from shiny import ui
+
+
+def ic(name, cls=""):
+    """Icone Font Awesome (SVG integre) — aucune emoji dans l'application."""
+    return f'<span class="ic {cls}">{icon_svg(name)}</span>'
 
 # --------------------------------------------------------------------------
 # Palette — drapeau togolais
@@ -166,6 +172,23 @@ CSS = f"""
 *{{box-sizing:border-box;}}
 body{{ background:#f4f6f5; color:var(--ink); margin:0;
        font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; }}
+.ic{{ display:inline-flex; align-items:center; }}
+.ic svg{{ height:1em; width:1em; vertical-align:-0.125em; fill:currentColor; }}
+.kpi .ic svg{{ height:1.5em; width:1.5em; }}
+.kpi-ic{{ float:right; opacity:.55; }}
+
+/* Bascule de langue (fixe, coin superieur droit) */
+.lang-switch{{ position:fixed; top:8px; right:14px; z-index:1100; }}
+.lang-switch .shiny-input-radiogroup{{ display:flex; gap:0; background:#ffffff;
+   border:1px solid var(--green); border-radius:8px; overflow:hidden;
+   box-shadow:0 1px 3px rgba(0,0,0,.15); }}
+.lang-switch .radio, .lang-switch .form-check{{ margin:0; }}
+.lang-switch label{{ padding:4px 12px; font-weight:800; font-size:12px; cursor:pointer;
+   color:var(--green-dark); margin:0; display:flex; align-items:center; }}
+.lang-switch input{{ display:none; }}
+.lang-switch input:checked + span{{ }}
+.lang-switch .form-check:has(input:checked) label,
+.lang-switch label:has(input:checked){{ background:var(--green); color:#fff; }}
 
 /* ---------- Bandeau + navigation FIXES en haut ---------- */
 .topbar{{ position:fixed; top:0; left:0; right:0; z-index:1000; }}

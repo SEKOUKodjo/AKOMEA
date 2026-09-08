@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 """
 =============================================================================
-  Tableau de bord — Acces aux telecommunications & services numeriques au Togo
-  Data Challenge Environnement / Economie Numerique — Togo AI Lab
-  Auteur : Maurice Kodjo SEKOU — Shiny for Python + Highcharts / Highmaps
+  Tableau de bord bilingue (FR/EN) — Acces aux telecommunications & services
+  numeriques au Togo. Data Challenge Economie Numerique — Togo AI Lab.
+  Auteur : Maurice Kodjo SEKOU — Shiny for Python + Highcharts / Highmaps.
+  Aucune emoji : icones Font Awesome integrees (faicons).
 =============================================================================
-Chargement optimise : l'application lit uniquement des .parquet pre-agreges
-(voir prepare_data.py). Aucun calcul lourd au demarrage.
 """
 import json
 import re
@@ -18,6 +17,8 @@ from shiny import App, reactive, render, ui
 
 from modules import theme as T
 from modules import recommender as R
+from modules import i18n as I
+from modules.theme import ic
 
 # --------------------------------------------------------------------------
 # DONNEES (pre-calculees)
@@ -35,16 +36,19 @@ COMMUNE_POP = POP_LOOKUP["commune"]
 CANTON_POP = POP_LOOKUP["canton"]
 FACTEUR = POP_LOOKUP["facteur_projection"]
 
-REGIONS = ["Toutes"] + sorted(PREF["region"].dropna().unique().tolist())
 FCFA = R.FCFA_PER_EUR
 LEVELS = ["region", "prefecture", "commune", "canton"]
 COLS = {"region": "region_nom_bdd", "prefecture": "prefecture_nom_bdd",
         "commune": "commune_nom_bdd", "canton": "canton_nom_bdd"}
 PREF_REMAP = {"MO": "PLAINE DU MO", "KPENDJAL OUEST": "NAKI OUEST"}
 
+# Icones par onglet / indicateur (aucune emoji)
+NAV_ICONS = {"accueil": "house", "infra": "building", "services": "money-bill-wave",
+             "couverture": "satellite-dish", "priorites": "ranking-star",
+             "reco": "lightbulb", "carte": "map", "auteur": "user"}
+
 
 def nf(v, dec=0):
-    """Format nombre a la francaise (espace comme separateur de milliers)."""
     if v is None or (isinstance(v, float) and pd.isna(v)):
         return "—"
     return (f"{v:,.{dec}f}").replace(",", " ").replace(".", ",")
@@ -61,7 +65,6 @@ def _pkey(x):
 
 
 def geo_filter(df, sel):
-    """Filtre un jeu de points selon la selection region/prefecture/commune/canton."""
     m = pd.Series(True, index=df.index)
     for lvl in LEVELS:
         if sel.get(lvl, "Toutes") != "Toutes":
@@ -70,7 +73,6 @@ def geo_filter(df, sel):
 
 
 def unit_population(sel):
-    """Population projetee 2026 de l'unite selectionnee (None si inconnue)."""
     if sel.get("canton", "Toutes") != "Toutes":
         v = CANTON_POP.get(f"{_pkey(sel['prefecture'])}||{_norm(sel['canton'])}")
         return round(v * FACTEUR) if v else None
@@ -86,17 +88,14 @@ def unit_population(sel):
     return int(PREF["population"].sum())
 
 
-def unit_label(sel):
-    names = {"canton": "Canton", "commune": "Commune",
-             "prefecture": "Prefecture", "region": "Region"}
+def unit_label(sel, lang):
     for lvl in reversed(LEVELS):
         if sel.get(lvl, "Toutes") != "Toutes":
-            return f"{names[lvl]} : {sel[lvl]}"
-    return "Tout le Togo"
+            return I.t(lang, f"scope_{lvl}", v=sel[lvl])
+    return I.t(lang, "scope_all")
 
 
 def cascade_opts(col, filters):
-    """Options d'un niveau selon les filtres parents (depuis la hierarchie)."""
     d = HIER
     for c, v in filters.items():
         if v and v != "Toutes":
@@ -106,8 +105,13 @@ def cascade_opts(col, filters):
     return ["Toutes"] + vals
 
 
+def choices_for(col, filters, lang):
+    """Dict {valeur: libelle} avec 'Toutes' localise, valeurs canoniques."""
+    return {o: (I.t(lang, "all") if o == "Toutes" else o)
+            for o in cascade_opts(col, filters)}
+
+
 def unit_counts(sel):
-    """(population, agents mm, agences telecom, datacenters) pour l'unite."""
     mm = geo_filter(MM, sel)
     pt = geo_filter(PTS, sel)
     return (unit_population(sel), int(len(mm)),
@@ -116,7 +120,6 @@ def unit_counts(sel):
 
 
 def cant_filter(sel):
-    """Filtre la table cantons (noms GeoJSON) via une comparaison normalisee."""
     d = CANT
     if sel.get("region", "Toutes") != "Toutes":
         d = d[d.region.apply(_norm) == _norm(sel["region"])]
@@ -128,96 +131,28 @@ def cant_filter(sel):
 
 
 # ==========================================================================
-#  INTERFACE
+#  INTERFACE (structure statique ; textes rendus dynamiquement selon la langue)
 # ==========================================================================
-NAV = [
-    ("accueil", "🏠 Accueil"),
-    ("infra", "🏢 Infrastructures"),
-    ("services", "📶 Services numeriques"),
-    ("couverture", "🛰️ Zones blanches"),
-    ("priorites", "📊 Priorites"),
-    ("reco", "💡 Recommandations"),
-    ("carte", "🗺️ Carte"),
-    ("auteur", "👤 Auteur"),
-]
-
-
-def topbar():
-    navbtns = "".join(
-        f'<button class="navlink{" active" if v=="accueil" else ""}" '
-        f'id="nav_{v}" onclick="selTab(\'{v}\',this)">{lbl}</button>'
-        for v, lbl in NAV)
-    return ui.HTML(f"""
-    <div class="topbar">
-      <div class="gov-banner">
-        <div class="ph logo-ph">Logo<br/>Togo AI Lab</div>
-        <div class="gov-titles">
-          <div class="t1">REPUBLIQUE TOGOLAISE</div>
-          <div class="t2">TRAVAIL &nbsp;-&nbsp; LIBERTE &nbsp;-&nbsp; PATRIE</div>
-          <div class="t3">MINISTERE DE L'ECONOMIE NUMERIQUE ET DE LA TRANSFORMATION DIGITALE</div>
-          <div class="t4">Tableau de bord d'aide a la decision — Acces aux telecommunications &amp; services numeriques</div>
-        </div>
-        <div class="ph crest-ph">Armoiries</div>
-      </div>
-      <div class="flag-band"></div>
-      <div class="appbar">
-        <div class="brand">📡 SAD Economie Numerique</div>
-        {navbtns}
-      </div>
-    </div>
-    <script>
-    function selTab(v, el){{
-      Shiny.setInputValue('active_tab', v, {{priority:'event'}});
-      document.querySelectorAll('.appbar .navlink').forEach(function(b){{
-         b.classList.remove('active'); }});
-      if(el) el.classList.add('active');
-    }}
-    // Ajuste dynamiquement le decalage du contenu a la hauteur reelle de la
-    // barre fixe (qui peut occuper 1 ou 2 lignes selon la largeur d'ecran).
-    function fitTop(){{
-      var tb=document.querySelector('.topbar'); if(!tb) return;
-      var h=tb.offsetHeight;
-      document.querySelectorAll('.app-body').forEach(function(e){{
-         e.style.paddingTop=(h+14)+'px'; }});
-      document.querySelectorAll('.sidebar').forEach(function(e){{
-         e.style.top=(h+10)+'px'; }});
-    }}
-    window.addEventListener('resize', fitTop);
-    document.addEventListener('shiny:connected', function(){{
-       setTimeout(fitTop,60); setTimeout(fitTop,400); }});
-    </script>
-    """)
-
-
-def sidebar():
-    return ui.div(
-        ui.h4("🔎 NIVEAU D'ANALYSE"),
-        ui.input_select("f_region", "Region", REGIONS, selected="Toutes"),
-        ui.input_select("f_pref", "Prefecture", ["Toutes"], selected="Toutes"),
-        ui.input_select("f_commune", "Commune", ["Toutes"], selected="Toutes"),
-        ui.input_select("f_canton", "Canton / localite", ["Toutes"], selected="Toutes"),
-        ui.input_action_button("reset", "Tout le Togo", class_="btn",
-                               style=f"width:100%;background:{T.YELLOW};"
-                                     f"border:none;font-weight:800;color:{T.INK};"
-                                     "margin-top:6px;border-radius:8px;padding:8px;"),
-        ui.hr(),
-        ui.p(ui.HTML("<b>Sources</b><br/>geodata.gouv.tg · RGPH-5 (2022) · "
-                     "geoBoundaries"), style="font-size:11px;color:#6b7b76;"),
-        ui.p(ui.HTML(f"Population projetee <b>{META['annee_pop']}</b> "
-                     f"(taux {META['taux_croissance']*100:.1f}%/an)"),
-             style="font-size:11px;color:#6b7b76;"),
-        class_="sidebar")
-
-
-def panel(title, *body):
-    return ui.div(ui.div(ui.HTML(title), class_="ph-head"), *body, class_="panel")
-
-
 app_ui = ui.page_fluid(
     T.head_deps(),
-    topbar(),
+    ui.div(ui.input_radio_buttons("lang", None, {"fr": "FR", "en": "EN"},
+                                  selected="fr", inline=True), class_="lang-switch"),
+    ui.output_ui("topbar"),
     ui.div(
-        sidebar(),
+        ui.div(
+            ui.output_ui("side_title"),
+            ui.input_select("f_region", "Region",
+                            {"Toutes": "Toutes"}, selected="Toutes"),
+            ui.input_select("f_pref", "Prefecture", {"Toutes": "Toutes"}, selected="Toutes"),
+            ui.input_select("f_commune", "Commune", {"Toutes": "Toutes"}, selected="Toutes"),
+            ui.input_select("f_canton", "Canton", {"Toutes": "Toutes"}, selected="Toutes"),
+            ui.input_action_button("reset", "Tout le Togo", class_="btn",
+                                   style=f"width:100%;background:{T.YELLOW};border:none;"
+                                   f"font-weight:800;color:{T.INK};margin-top:6px;"
+                                   "border-radius:8px;padding:8px;"),
+            ui.hr(),
+            ui.output_ui("side_footer"),
+            class_="sidebar"),
         ui.div(
             ui.navset_hidden(
                 ui.nav_panel(None, ui.output_ui("tab_accueil"), value="accueil"),
@@ -241,44 +176,137 @@ app_ui = ui.page_fluid(
 # ==========================================================================
 def server(input, output, session):
 
-    # ------- navigation (barre fixe) -------
+    def L():
+        return input.lang()
+
+    def t(key, **f):
+        return I.t(input.lang(), key, **f)
+
+    def cur_tab():
+        try:
+            return input.active_tab()
+        except Exception:
+            return "accueil"
+
+    # ---------------- bandeau + navigation (barre fixe) ----------------
+    @render.ui
+    def topbar():
+        lang = L()
+        active = cur_tab()
+        navbtns = "".join(
+            f'<button class="navlink{" active" if v==active else ""}" '
+            f'id="nav_{v}" onclick="selTab(\'{v}\',this)">{ic(NAV_ICONS[v])}'
+            f'<span style="margin-left:6px">{I.t(lang,"nav_"+v)}</span></button>'
+            for v in NAV_ICONS)
+        return ui.HTML(f"""
+        <div class="topbar">
+          <div class="gov-banner">
+            <div class="ph logo-ph">{I.t(lang,'logo_ph')}</div>
+            <div class="gov-titles">
+              <div class="t1">{I.t(lang,'republic')}</div>
+              <div class="t2">{I.t(lang,'motto')}</div>
+              <div class="t3">{I.t(lang,'ministry')}</div>
+              <div class="t4">{I.t(lang,'banner_sub')}</div>
+            </div>
+            <div class="ph crest-ph">{I.t(lang,'crest_ph')}</div>
+          </div>
+          <div class="flag-band"></div>
+          <div class="appbar">
+            <div class="brand">{ic('tower-broadcast')}<span style="margin-left:8px">
+              {I.t(lang,'brand')}</span></div>
+            {navbtns}
+          </div>
+        </div>
+        <script>
+        function selTab(v, el){{
+          Shiny.setInputValue('active_tab', v, {{priority:'event'}});
+          document.querySelectorAll('.appbar .navlink').forEach(function(b){{
+             b.classList.remove('active'); }});
+          if(el) el.classList.add('active');
+        }}
+        function fitTop(){{
+          var tb=document.querySelector('.topbar'); if(!tb) return;
+          var h=tb.offsetHeight;
+          document.querySelectorAll('.app-body').forEach(function(e){{
+             e.style.paddingTop=(h+14)+'px'; }});
+          document.querySelectorAll('.sidebar').forEach(function(e){{
+             e.style.top=(h+10)+'px'; }});
+        }}
+        window.addEventListener('resize', fitTop);
+        setTimeout(fitTop,60); setTimeout(fitTop,400);
+        </script>""")
+
+    @render.ui
+    def side_title():
+        return ui.HTML(f'<h4>{ic("magnifying-glass")}<span style="margin-left:6px">'
+                       f'{t("side_title")}</span></h4>')
+
+    @render.ui
+    def side_footer():
+        return ui.TagList(
+            ui.p(ui.HTML(f"<b>{t('sources')}</b><br/>{t('sources_list')}"),
+                 style="font-size:11px;color:#6b7b76;"),
+            ui.p(ui.HTML(t("pop_note", y=META["annee_pop"],
+                           r=f"{META['taux_croissance']*100:.1f}")),
+                 style="font-size:11px;color:#6b7b76;"))
+
+    # ---------------- navigation switch ----------------
     @reactive.effect
     @reactive.event(input.active_tab)
     async def _switch():
         ui.update_navset("tab", selected=input.active_tab())
         await session.send_custom_message("reflow", {})
 
-    # ------- filtres en cascade : region > prefecture > commune > canton -------
+    # ---------------- cascade des filtres (sidebar) ----------------
     @reactive.effect
     @reactive.event(input.f_region)
     def _c_region():
-        ui.update_select("f_pref", choices=cascade_opts(
-            "prefecture", {"region": input.f_region()}), selected="Toutes")
-        ui.update_select("f_commune", choices=["Toutes"], selected="Toutes")
-        ui.update_select("f_canton", choices=["Toutes"], selected="Toutes")
+        ui.update_select("f_pref", choices=choices_for(
+            "prefecture", {"region": input.f_region()}, L()), selected="Toutes")
+        ui.update_select("f_commune", choices=choices_for("commune", {}, L()), selected="Toutes")
+        ui.update_select("f_canton", choices=choices_for("canton", {}, L()), selected="Toutes")
 
     @reactive.effect
     @reactive.event(input.f_pref)
     def _c_pref():
-        ui.update_select("f_commune", choices=cascade_opts(
-            "commune", {"region": input.f_region(),
-                        "prefecture": input.f_pref()}), selected="Toutes")
-        ui.update_select("f_canton", choices=["Toutes"], selected="Toutes")
+        ui.update_select("f_commune", choices=choices_for(
+            "commune", {"region": input.f_region(), "prefecture": input.f_pref()},
+            L()), selected="Toutes")
+        ui.update_select("f_canton", choices=choices_for("canton", {}, L()), selected="Toutes")
 
     @reactive.effect
     @reactive.event(input.f_commune)
     def _c_commune():
-        ui.update_select("f_canton", choices=cascade_opts(
+        ui.update_select("f_canton", choices=choices_for(
             "canton", {"region": input.f_region(), "prefecture": input.f_pref(),
-                       "commune": input.f_commune()}), selected="Toutes")
+                       "commune": input.f_commune()}, L()), selected="Toutes")
 
     @reactive.effect
     @reactive.event(input.reset)
     def _reset():
         ui.update_select("f_region", selected="Toutes")
-        ui.update_select("f_pref", choices=["Toutes"], selected="Toutes")
-        ui.update_select("f_commune", choices=["Toutes"], selected="Toutes")
-        ui.update_select("f_canton", choices=["Toutes"], selected="Toutes")
+        for k in ("f_pref", "f_commune", "f_canton"):
+            ui.update_select(k, choices={"Toutes": t("all")}, selected="Toutes")
+
+    # ---------------- changement de langue : libelles + choix ----------------
+    @reactive.effect
+    @reactive.event(input.lang)
+    def _relang():
+        lang = input.lang()
+        with reactive.isolate():
+            sr, sp = input.f_region(), input.f_pref()
+            sc, sk = input.f_commune(), input.f_canton()
+        ui.update_select("f_region", label=I.t(lang, "region"),
+                         choices=choices_for("region", {}, lang), selected=sr)
+        ui.update_select("f_pref", label=I.t(lang, "prefecture"),
+                         choices=choices_for("prefecture", {"region": sr}, lang), selected=sp)
+        ui.update_select("f_commune", label=I.t(lang, "commune"),
+                         choices=choices_for("commune", {"region": sr, "prefecture": sp}, lang),
+                         selected=sc)
+        ui.update_select("f_canton", label=I.t(lang, "canton"),
+                         choices=choices_for("canton", {"region": sr, "prefecture": sp,
+                                                        "commune": sc}, lang), selected=sk)
+        ui.update_action_button("reset", label=I.t(lang, "reset"))
 
     @reactive.calc
     def sel():
@@ -287,7 +315,6 @@ def server(input, output, session):
 
     @reactive.calc
     def scope():
-        """DataFrame prefectures filtre (pour les graphiques de comparaison)."""
         df = PREF
         if input.f_region() != "Toutes":
             df = df[df.region == input.f_region()]
@@ -295,77 +322,72 @@ def server(input, output, session):
             df = df[df.prefecture == input.f_pref()]
         return df
 
-    @reactive.calc
-    def scope_label():
-        return unit_label(sel())
+    def badge(txt, color=None):
+        color = color or T.GREEN_DARK
+        return ui.div(ui.HTML(f"<span class='badge' style='background:{color}'>{txt}</span>"),
+                      style="margin-bottom:10px;")
+
+    def panel(icon, key, *body):
+        head = ui.div(ui.HTML(f"{ic(icon)}<span style='margin-left:8px'>{t(key)}</span>"),
+                      class_="ph-head")
+        return ui.div(head, *body, class_="panel")
 
     # ==================================================================
-    #  ONGLET ACCUEIL
+    #  ACCUEIL
     # ==================================================================
     @render.ui
     def tab_accueil():
         s = sel()
         pop, n_mm, n_ag, n_dc = unit_counts(s)
         mm1000 = round(n_mm / pop * 1000, 2) if pop else None
-        pop_txt = nf(pop) if pop else "n.d."
+        pop_txt = nf(pop) if pop else t("na")
 
-        kpis = ui.HTML(f"""
-        <div class="kpi-row">
-          <div class="kpi green"><div class="v">{nf(n_mm)}</div>
-            <div class="l">Agents mobile money</div><div class="s">Points de service</div></div>
-          <div class="kpi green2"><div class="v">{nf(n_ag)}</div>
-            <div class="l">Agences telecoms</div><div class="s">Togocom + Moov</div></div>
-          <div class="kpi yellow"><div class="v">{nf(mm1000,2) if mm1000 is not None else 'n.d.'}</div>
-            <div class="l">Agents / 1 000 hab.</div><div class="s">Inclusion financiere</div></div>
-          <div class="kpi grey"><div class="v">{nf(n_dc)}</div>
-            <div class="l">Datacenters</div><div class="s">Centres de donnees</div></div>
-          <div class="kpi green"><div class="v">{pop_txt}</div>
-            <div class="l">Population {META['annee_pop']}</div><div class="s">Estimation</div></div>
-          <div class="kpi red"><div class="v">{nf(META['n_zones_blanches'])}</div>
-            <div class="l">Zones blanches</div><div class="s">Cantons sans agent</div></div>
-        </div>""")
+        def card(cls, icon, value, label, sub):
+            return (f'<div class="kpi {cls}"><span class="kpi-ic ic">{icon}</span>'
+                    f'<div class="v">{value}</div><div class="l">{label}</div>'
+                    f'<div class="s">{sub}</div></div>')
+        kpis = ui.HTML('<div class="kpi-row">' + "".join([
+            card("green", ic("money-bill-wave"), nf(n_mm), t("kpi_mm"), t("kpi_mm_s")),
+            card("green2", ic("building"), nf(n_ag), t("kpi_ag"), t("kpi_ag_s")),
+            card("yellow", ic("scale-balanced"),
+                 nf(mm1000, 2) if mm1000 is not None else t("na"), t("kpi_ratio"), t("kpi_ratio_s")),
+            card("grey", ic("server"), nf(n_dc), t("kpi_dc"), t("kpi_dc_s")),
+            card("green", ic("users"), pop_txt, t("kpi_pop", y=META["annee_pop"]), t("kpi_pop_s")),
+            card("red", ic("tower-cell"), nf(META["n_zones_blanches"]), t("kpi_zb"), t("kpi_zb_s")),
+        ]) + "</div>")
 
         return ui.TagList(
-            ui.div(ui.HTML(f"<span class='badge' style='background:{T.GREEN_DARK}'>"
-                           f"{scope_label()}</span>"), style="margin-bottom:10px;"),
-            kpis,
-            ui.div(
-                panel("📶 Agents mobile money par region", ui.output_ui("acc_mm_region")),
-                panel("🏢 Agences telecoms par operateur", ui.output_ui("acc_ag_op")),
-                class_="grid-2"),
-            ui.div(
-                panel("⚖️ Adequation offre / population (agents pour 1 000 hab.)",
-                      ui.output_ui("acc_adequation")),
-                panel("🗺️ Densite mobile money par prefecture", ui.output_ui("acc_map")),
-                class_="grid-2"),
+            badge(unit_label(s, L())), kpis,
+            ui.div(panel("money-bill-wave", "p_mm_region", ui.output_ui("acc_mm_region")),
+                   panel("building", "p_ag_op", ui.output_ui("acc_ag_op")), class_="grid-2"),
+            ui.div(panel("scale-balanced", "p_adequation", ui.output_ui("acc_adequation")),
+                   panel("map", "p_densite_pref", ui.output_ui("acc_map")), class_="grid-2"),
         )
 
     @render.ui
     def acc_mm_region():
         d = REG.sort_values("n_mobile_money", ascending=False)
         return T.highchart({
-            "chart": {"type": "column"},
-            "title": {"text": None},
+            "chart": {"type": "column"}, "title": {"text": None},
             "xAxis": {"categories": d["region"].tolist()},
-            "yAxis": {"title": {"text": "Agents"}},
-            "tooltip": {"pointFormat": "<b>{point.y:,.0f}</b> agents"},
+            "yAxis": {"title": {"text": t("ax_agents")}},
+            "tooltip": {"pointFormat": "<b>{point.y:,.0f}</b>"},
             "plotOptions": {"column": {"colorByPoint": True, "borderRadius": 3}},
-            "series": [{"name": "Agents mobile money", "data": d["n_mobile_money"].tolist()}],
+            "series": [{"name": t("s_mm"), "data": d["n_mobile_money"].tolist()}],
         }, height=300)
 
     @render.ui
     def acc_ag_op():
         d = geo_filter(PTS, sel())
         return T.highchart({
-            "chart": {"type": "pie"},
-            "title": {"text": None},
+            "chart": {"type": "pie"}, "title": {"text": None},
             "tooltip": {"pointFormat": "<b>{point.y}</b> ({point.percentage:.0f} %)"},
             "plotOptions": {"pie": {"innerSize": "55%", "dataLabels":
                 {"format": "{point.name}: {point.y}"}}},
-            "series": [{"name": "Agences", "colorByPoint": True, "data": [
+            "series": [{"name": t("th_agences"), "colorByPoint": True, "data": [
                 {"name": "Togocom", "y": int((d.operateur == "Togocom").sum()), "color": T.GREEN},
                 {"name": "Moov", "y": int((d.operateur == "Moov").sum()), "color": T.YELLOW},
-                {"name": "Datacenters", "y": int((d.type_infra == "Datacenter").sum()), "color": T.RED},
+                {"name": t("kpi_dc"), "y": int((d.type_infra == "Datacenter").sum()), "color": T.RED},
             ]}],
         }, height=300)
 
@@ -373,64 +395,54 @@ def server(input, output, session):
     def acc_adequation():
         d = scope().sort_values("mm_pour_1000", ascending=False).head(15)
         return T.highchart({
-            "chart": {"type": "bar"},
-            "title": {"text": None},
+            "chart": {"type": "bar"}, "title": {"text": None},
             "xAxis": {"categories": d["prefecture"].tolist()},
-            "yAxis": {"title": {"text": "Agents / 1 000 hab."},
-                      "plotLines": [{"value": META["mm_pour_1000_national"],
-                                     "color": T.RED, "width": 2, "dashStyle": "Dash",
-                                     "label": {"text": "Moyenne nationale",
-                                               "style": {"color": T.RED}}}]},
-            "tooltip": {"pointFormat": "<b>{point.y:.2f}</b> / 1 000 hab."},
+            "yAxis": {"title": {"text": t("ax_mm1000")},
+                      "plotLines": [{"value": META["mm_pour_1000_national"], "color": T.RED,
+                                     "width": 2, "dashStyle": "Dash",
+                                     "label": {"text": t("nat_avg"), "style": {"color": T.RED}}}]},
+            "tooltip": {"pointFormat": "<b>{point.y:.2f}</b>"},
             "plotOptions": {"bar": {"color": T.GREEN, "borderRadius": 2}},
-            "series": [{"name": "Agents / 1 000 hab.", "data": d["mm_pour_1000"].round(2).tolist()}],
+            "series": [{"name": t("ax_mm1000"), "data": d["mm_pour_1000"].round(2).tolist()}],
         }, height=380)
 
     @render.ui
     def acc_map():
         vals = [{"key": r.key, "name": r.prefecture, "value": float(r.mm_pour_1000)}
                 for r in PREF.itertuples()]
-        return T.highmap(vals, title="", subtitle="Agents pour 1 000 hab.",
-                         value_suffix=" / 1000", height=380)
+        return T.highmap(vals, subtitle=t("ax_mm1000"), value_suffix=" / 1000", height=380)
 
     # ==================================================================
-    #  ONGLET INFRASTRUCTURES
+    #  INFRASTRUCTURES
     # ==================================================================
     @render.ui
     def tab_infra():
         return ui.TagList(
-            ui.div(ui.HTML(f"<span class='badge' style='background:{T.GREEN_DARK}'>"
-                           f"Repartition spatiale des infrastructures — {scope_label()}"
-                           "</span>"), style="margin-bottom:10px;"),
-            panel("🗺️ Localisation des agences telecoms &amp; datacenters",
-                  ui.output_ui("infra_map")),
-            ui.div(
-                panel("🏢 Agences par prefecture (Top 15)", ui.output_ui("infra_bar")),
-                panel("📅 Anciennete des agences (annee de creation)",
-                      ui.output_ui("infra_timeline")),
-                class_="grid-2"),
-            panel("🖥️ Concentration des centres de donnees",
-                  ui.output_ui("infra_dc_note")),
+            badge(t("infra_badge", s=unit_label(sel(), L()))),
+            panel("map-location-dot", "p_infra_map", ui.output_ui("infra_map")),
+            ui.div(panel("building", "p_infra_bar", ui.output_ui("infra_bar")),
+                   panel("clock-rotate-left", "p_infra_time", ui.output_ui("infra_timeline")),
+                   class_="grid-2"),
+            panel("server", "p_infra_dc", ui.output_ui("infra_dc_note")),
         )
 
     @render.ui
     def infra_map():
         pts = geo_filter(PTS, sel())
         colors = {"Togocom": T.GREEN, "Moov": T.YELLOW, "Datacenter": T.RED}
-        points = [{"name": f"{r.nom} ({r.operateur})", "lon": float(r.lon),
-                   "lat": float(r.lat), "color": colors.get(r.operateur, T.GREEN_DARK)}
+        points = [{"name": f"{r.nom} ({r.operateur})", "lon": float(r.lon), "lat": float(r.lat),
+                   "color": colors.get(r.operateur, T.GREEN_DARK)}
                   for r in pts.itertuples() if pd.notna(r.lon)]
         vals = [{"key": r.key, "name": r.prefecture, "value": float(r.n_agences)}
                 for r in PREF.itertuples()]
-        return T.highmap(vals, title="", subtitle="Fond : nb d'agences — points : sites",
-                         points=points, value_suffix=" agences", height=520)
+        return T.highmap(vals, subtitle=t("p_infra_map"), points=points,
+                         value_suffix=" " + t("th_agences").lower(), height=520)
 
     @render.ui
     def infra_bar():
         d = geo_filter(PTS, sel())
         d = d[d.type_infra == "Agence telecom"]
-        g = (d.groupby(["prefecture_nom_bdd", "operateur"]).size()
-             .unstack(fill_value=0))
+        g = d.groupby(["prefecture_nom_bdd", "operateur"]).size().unstack(fill_value=0)
         for op in ["Togocom", "Moov"]:
             if op not in g:
                 g[op] = 0
@@ -439,7 +451,7 @@ def server(input, output, session):
         return T.highchart({
             "chart": {"type": "bar"}, "title": {"text": None},
             "xAxis": {"categories": g.index.tolist()},
-            "yAxis": {"title": {"text": "Nombre d'agences"}, "stackLabels": {"enabled": True}},
+            "yAxis": {"title": {"text": t("ax_nb_agences")}, "stackLabels": {"enabled": True}},
             "plotOptions": {"series": {"stacking": "normal", "borderRadius": 2}},
             "tooltip": {"shared": True},
             "series": [{"name": "Togocom", "data": g["Togocom"].tolist(), "color": T.GREEN},
@@ -450,94 +462,77 @@ def server(input, output, session):
     def infra_timeline():
         d = geo_filter(PTS, sel())
         d = d[(d.type_infra == "Agence telecom") & d.annee.notna()]
-        g = d.groupby("annee").size().sort_index()
-        g = g.cumsum()
+        g = d.groupby("annee").size().sort_index().cumsum()
         return T.highchart({
             "chart": {"type": "area"}, "title": {"text": None},
             "xAxis": {"categories": [int(x) for x in g.index.tolist()]},
-            "yAxis": {"title": {"text": "Agences cumulees"}},
-            "tooltip": {"pointFormat": "<b>{point.y}</b> agences (cumul)"},
+            "yAxis": {"title": {"text": t("s_cumul_ag")}},
+            "tooltip": {"pointFormat": "<b>{point.y}</b>"},
             "plotOptions": {"area": {"color": T.GREEN, "fillColor": "rgba(0,135,81,.18)",
                                      "marker": {"enabled": False}}},
-            "series": [{"name": "Agences (cumul)", "data": g.tolist()}],
+            "series": [{"name": t("s_cumul_ag"), "data": g.tolist()}],
         }, height=420)
 
     @render.ui
     def infra_dc_note():
         d = PTS[PTS.type_infra == "Datacenter"]
         rows = "".join(
-            f"<tr><td>{r.nom}</td><td>{r.prefecture_nom_bdd}</td>"
-            f"<td>{r.commune_nom_bdd}</td><td>{int(r.annee) if pd.notna(r.annee) else '—'}</td></tr>"
-            for r in d.itertuples())
+            f"<tr><td>{r.nom}</td><td>{r.prefecture_nom_bdd}</td><td>{r.commune_nom_bdd}</td>"
+            f"<td>{int(r.annee) if pd.notna(r.annee) else '—'}</td></tr>" for r in d.itertuples())
         return ui.HTML(
-            f"<p style='color:#6b7b76;font-size:13px'>Les <b>{len(d)} datacenters</b> "
-            "recenses sont tous situes dans le <b>Grand Lome (prefecture du Golfe)</b> — "
-            "une concentration extreme qui constitue un risque de resilience et un frein "
-            "a la deconcentration numerique du territoire.</p>"
-            f"<table class='reco'><tr><th>Etablissement</th><th>Prefecture</th>"
-            f"<th>Commune</th><th>Annee</th></tr>{rows}</table>")
+            f"<p style='color:#6b7b76;font-size:13px'>{t('infra_dc_note', n=len(d))}</p>"
+            f"<table class='reco'><tr><th>{t('th_etab')}</th><th>{t('th_prefecture')}</th>"
+            f"<th>{t('th_commune')}</th><th>{t('th_annee')}</th></tr>{rows}</table>")
 
     # ==================================================================
-    #  ONGLET SERVICES NUMERIQUES (mobile money)
+    #  SERVICES NUMERIQUES
     # ==================================================================
     @render.ui
     def tab_services():
         return ui.TagList(
-            ui.div(ui.HTML(f"<span class='badge' style='background:{T.GREEN_DARK}'>"
-                           f"Couverture des services numeriques — {scope_label()}</span>"),
-                   style="margin-bottom:10px;"),
-            ui.div(
-                panel("🗺️ Densite d'agents mobile money (pour 1 000 hab.)",
-                      ui.output_ui("srv_map")),
-                panel("🥧 Repartition des agents par operateur",
-                      ui.output_ui("srv_op")),
-                class_="grid-2"),
-            ui.div(
-                panel("🔝 Prefectures les mieux servies", ui.output_ui("srv_top")),
-                panel("🔻 Prefectures les moins servies", ui.output_ui("srv_bottom")),
-                class_="grid-2"),
-            panel("👥 Habitants par agent (accessibilite) — plus la barre est haute, "
-                  "moins le service est accessible", ui.output_ui("srv_hab")),
+            badge(t("srv_badge", s=unit_label(sel(), L()))),
+            ui.div(panel("map", "p_srv_map", ui.output_ui("srv_map")),
+                   panel("chart-pie", "p_srv_op", ui.output_ui("srv_op")), class_="grid-2"),
+            ui.div(panel("arrow-trend-up", "p_srv_top", ui.output_ui("srv_top")),
+                   panel("arrow-trend-down", "p_srv_bottom", ui.output_ui("srv_bottom")),
+                   class_="grid-2"),
+            panel("users", "p_srv_hab", ui.output_ui("srv_hab")),
         )
 
     @render.ui
     def srv_map():
         vals = [{"key": r.key, "name": r.prefecture, "value": float(r.mm_pour_1000)}
                 for r in PREF.itertuples()]
-        return T.highmap(vals, title="", subtitle="Agents / 1 000 hab.",
-                         value_suffix=" / 1000", height=420)
+        return T.highmap(vals, subtitle=t("ax_mm1000"), value_suffix=" / 1000", height=420)
 
     @render.ui
     def srv_op():
         g = geo_filter(MM, sel()).groupby("operateur").size().sort_values(ascending=False)
-        data = [{"name": k, "y": int(v)} for k, v in g.items()]
         return T.highchart({
             "chart": {"type": "pie"}, "title": {"text": None},
             "tooltip": {"pointFormat": "<b>{point.y:,.0f}</b> ({point.percentage:.1f} %)"},
             "plotOptions": {"pie": {"innerSize": "50%", "colorByPoint": True,
                             "dataLabels": {"format": "{point.name}: {point.percentage:.0f} %"}}},
-            "series": [{"name": "Agents", "data": data}],
+            "series": [{"name": t("ax_agents"), "data": [{"name": k, "y": int(v)} for k, v in g.items()]}],
         }, height=420)
 
-    @render.ui
-    def srv_top():
-        d = scope().sort_values("mm_pour_1000", ascending=False).head(10)
-        return _rank_bar(d, "mm_pour_1000", "Agents / 1 000 hab.", T.GREEN)
-
-    @render.ui
-    def srv_bottom():
-        d = scope().sort_values("mm_pour_1000", ascending=True).head(10)
-        return _rank_bar(d, "mm_pour_1000", "Agents / 1 000 hab.", T.RED)
-
-    def _rank_bar(d, col, label, color):
+    def _rank_bar(d, color):
         return T.highchart({
             "chart": {"type": "bar"}, "title": {"text": None},
             "xAxis": {"categories": d["prefecture"].tolist()},
-            "yAxis": {"title": {"text": label}},
+            "yAxis": {"title": {"text": t("ax_mm1000")}},
             "tooltip": {"pointFormat": "<b>{point.y:.2f}</b>"},
             "plotOptions": {"bar": {"color": color, "borderRadius": 2}},
-            "series": [{"name": label, "data": d[col].round(2).tolist()}],
+            "series": [{"name": t("ax_mm1000"), "data": d["mm_pour_1000"].round(2).tolist()}],
         }, height=360)
+
+    @render.ui
+    def srv_top():
+        return _rank_bar(scope().sort_values("mm_pour_1000", ascending=False).head(10), T.GREEN)
+
+    @render.ui
+    def srv_bottom():
+        return _rank_bar(scope().sort_values("mm_pour_1000", ascending=True).head(10), T.RED)
 
     @render.ui
     def srv_hab():
@@ -546,54 +541,50 @@ def server(input, output, session):
         return T.highchart({
             "chart": {"type": "column"}, "title": {"text": None},
             "xAxis": {"categories": d["prefecture"].tolist(), "labels": {"rotation": -45}},
-            "yAxis": {"title": {"text": "Habitants / agent"}},
-            "tooltip": {"pointFormat": "<b>{point.y:,.0f}</b> hab. par agent"},
+            "yAxis": {"title": {"text": t("ax_hab_agent")}},
+            "tooltip": {"pointFormat": "<b>{point.y:,.0f}</b>"},
             "plotOptions": {"column": {"color": T.RED, "borderRadius": 2}},
-            "series": [{"name": "Habitants / agent", "data": d["hab_par_agent_mm"].tolist()}],
+            "series": [{"name": t("s_hab_agent"), "data": d["hab_par_agent_mm"].tolist()}],
         }, height=340)
 
     # ==================================================================
-    #  ONGLET COUVERTURE & ZONES BLANCHES
+    #  ZONES BLANCHES
     # ==================================================================
     @render.ui
     def tab_couverture():
-        tot = len(CANT)
-        blancs = int((~CANT.couvert_mm).sum())
+        tot = len(CANT); blancs = int((~CANT.couvert_mm).sum())
         taux = round((tot - blancs) / tot * 100, 1)
+
+        def card(cls, icon, value, label, sub):
+            return (f'<div class="kpi {cls}"><span class="kpi-ic ic">{icon}</span>'
+                    f'<div class="v">{value}</div><div class="l">{label}</div>'
+                    f'<div class="s">{sub}</div></div>')
+        kpis = ui.HTML('<div class="kpi-row">' + "".join([
+            card("green", ic("circle-check"), nf(tot - blancs), t("cov_couverts"), t("cov_couverts_s")),
+            card("red", ic("tower-cell"), nf(blancs), t("kpi_zb"), t("cov_blancs_s")),
+            card("yellow", ic("percent"), nf(taux, 1) + " %", t("cov_taux"), t("cov_taux_s")),
+            card("grey", ic("layer-group"), nf(tot), t("cov_total"), t("cov_total_s")),
+        ]) + "</div>")
         return ui.TagList(
-            ui.HTML(f"""<div class="kpi-row">
-              <div class="kpi green"><div class="v">{nf(tot-blancs)}</div>
-                <div class="l">Cantons couverts</div><div class="s">au moins 1 agent</div></div>
-              <div class="kpi red"><div class="v">{nf(blancs)}</div>
-                <div class="l">Zones blanches</div><div class="s">aucun agent mobile money</div></div>
-              <div class="kpi yellow"><div class="v">{nf(taux,1)} %</div>
-                <div class="l">Taux de couverture</div><div class="s">cantons desservis</div></div>
-              <div class="kpi grey"><div class="v">{nf(tot)}</div>
-                <div class="l">Cantons (total)</div><div class="s">decoupage adm3</div></div>
-            </div>"""),
-            ui.div(
-                panel("🛰️ Zones blanches par region", ui.output_ui("cov_bar")),
-                panel("🗺️ Cartographie des zones blanches", ui.output_ui("cov_map")),
-                class_="grid-2"),
-            panel("📋 Liste des cantons non desservis (zones blanches)",
-                  ui.output_ui("cov_table")),
+            kpis,
+            ui.div(panel("chart-column", "p_cov_bar", ui.output_ui("cov_bar")),
+                   panel("map-location-dot", "p_cov_map", ui.output_ui("cov_map")), class_="grid-2"),
+            panel("list", "p_cov_table", ui.output_ui("cov_table")),
         )
 
     @render.ui
     def cov_bar():
-        g = CANT.groupby("region")["couvert_mm"].agg(
-            total="count", couverts="sum")
+        g = CANT.groupby("region")["couvert_mm"].agg(total="count", couverts="sum")
         g["blancs"] = g["total"] - g["couverts"]
         g = g.sort_values("blancs", ascending=False)
         return T.highchart({
             "chart": {"type": "column"}, "title": {"text": None},
             "xAxis": {"categories": g.index.tolist()},
-            "yAxis": {"title": {"text": "Nombre de cantons"}, "stackLabels": {"enabled": True}},
+            "yAxis": {"title": {"text": t("ax_nb_cantons")}, "stackLabels": {"enabled": True}},
             "plotOptions": {"column": {"stacking": "normal", "borderRadius": 2}},
             "tooltip": {"shared": True},
-            "series": [
-                {"name": "Couverts", "data": g["couverts"].astype(int).tolist(), "color": T.GREEN},
-                {"name": "Zones blanches", "data": g["blancs"].astype(int).tolist(), "color": T.RED}],
+            "series": [{"name": t("covered"), "data": g["couverts"].astype(int).tolist(), "color": T.GREEN},
+                       {"name": t("s_wz"), "data": g["blancs"].astype(int).tolist(), "color": T.RED}],
         }, height=380)
 
     @render.ui
@@ -604,35 +595,29 @@ def server(input, output, session):
                    "lat": float(r.lat), "color": T.RED} for r in d.itertuples()]
         vals = [{"key": r.key, "name": r.prefecture, "value": float(r.n_mobile_money)}
                 for r in PREF.itertuples()]
-        return T.highmap(vals, title="", subtitle="Points rouges = cantons sans agent",
-                         points=points, value_suffix=" agents", height=380)
+        return T.highmap(vals, subtitle=t("cov_map_sub"), points=points,
+                         value_suffix=" " + t("th_mm").lower(), height=380)
 
     @render.ui
     def cov_table():
         d = cant_filter(sel())
-        d = d[~d.couvert_mm].copy()
-        d = d.sort_values(["region", "prefecture", "canton"])
-        rows = "".join(f"<tr><td>{r.canton}</td><td>{r.prefecture}</td>"
-                       f"<td>{r.region}</td></tr>" for r in d.itertuples())
-        return ui.HTML(f"<div style='max-height:340px;overflow:auto'>"
-                       f"<table class='reco'><tr><th>Canton</th><th>Prefecture</th>"
-                       f"<th>Region</th></tr>{rows}</table></div>")
+        d = d[~d.couvert_mm].sort_values(["region", "prefecture", "canton"])
+        rows = "".join(f"<tr><td>{r.canton}</td><td>{r.prefecture}</td><td>{r.region}</td></tr>"
+                       for r in d.itertuples())
+        return ui.HTML(f"<div style='max-height:340px;overflow:auto'><table class='reco'>"
+                       f"<tr><th>{t('th_canton')}</th><th>{t('th_prefecture')}</th>"
+                       f"<th>{t('th_region')}</th></tr>{rows}</table></div>")
 
     # ==================================================================
-    #  ONGLET PRIORITES
+    #  PRIORITES
     # ==================================================================
     @render.ui
     def tab_priorites():
         return ui.TagList(
-            ui.div(ui.HTML(f"<span class='badge' style='background:{T.RED}'>"
-                   "Score de priorite = deficit d'offre pondere par la population"
-                   " (0 a 100)</span>"), style="margin-bottom:10px;"),
-            ui.div(
-                panel("📊 Classement des prefectures prioritaires",
-                      ui.output_ui("prio_bar")),
-                panel("🗺️ Carte des priorites", ui.output_ui("prio_map")),
-                class_="grid-2"),
-            panel("📋 Tableau de priorisation", ui.output_ui("prio_table")),
+            badge(t("prio_badge"), T.RED),
+            ui.div(panel("ranking-star", "p_prio_bar", ui.output_ui("prio_bar")),
+                   panel("map", "p_prio_map", ui.output_ui("prio_map")), class_="grid-2"),
+            panel("table-list", "p_prio_table", ui.output_ui("prio_table")),
         )
 
     @render.ui
@@ -641,11 +626,10 @@ def server(input, output, session):
         return T.highchart({
             "chart": {"type": "bar"}, "title": {"text": None},
             "xAxis": {"categories": d["prefecture"].tolist()},
-            "yAxis": {"title": {"text": "Score de priorite"}, "max": 100},
-            "tooltip": {"pointFormat": "Score : <b>{point.y:.1f}</b>/100"},
-            "plotOptions": {"bar": {"colorByPoint": True, "borderRadius": 2}},
-            "colorAxis": False,
-            "series": [{"name": "Score", "data": [
+            "yAxis": {"title": {"text": t("ax_score")}, "max": 100},
+            "tooltip": {"pointFormat": "<b>{point.y:.1f}</b>/100"},
+            "plotOptions": {"bar": {"borderRadius": 2}},
+            "series": [{"name": t("th_score"), "data": [
                 {"y": float(v), "color": T.RED if v >= 66 else (T.YELLOW if v >= 45 else T.GREEN)}
                 for v in d["score_priorite"]]}],
         }, height=440)
@@ -654,83 +638,73 @@ def server(input, output, session):
     def prio_map():
         vals = [{"key": r.key, "name": r.prefecture, "value": float(r.score_priorite)}
                 for r in PREF.itertuples()]
-        return T.highmap(vals, title="", subtitle="Score de priorite (0-100)",
-                         scale=T.PRIORITY_SCALE, value_suffix=" /100", height=440)
+        return T.highmap(vals, subtitle=t("ax_score"), scale=T.PRIORITY_SCALE,
+                         value_suffix=" /100", height=440)
 
     @render.ui
     def prio_table():
-        d = scope().sort_values("rang_priorite").copy()
+        d = scope().sort_values("rang_priorite")
         rows = ""
         for r in d.itertuples():
             col = T.RED if r.score_priorite >= 66 else (T.YELLOW if r.score_priorite >= 45 else T.GREEN)
             rows += (f"<tr><td>{r.rang_priorite}</td><td><b>{r.prefecture}</b></td>"
-                     f"<td>{r.region}</td><td>{nf(r.population)}</td>"
-                     f"<td>{nf(r.n_mobile_money)}</td><td>{nf(r.mm_pour_1000,2)}</td>"
-                     f"<td>{nf(r.n_agences)}</td>"
-                     f"<td><span class='badge' style='background:{col}'>"
-                     f"{nf(r.score_priorite,1)}</span></td></tr>")
-        return ui.HTML(f"<div style='max-height:420px;overflow:auto'>"
-                       "<table class='reco'><tr><th>Rang</th><th>Prefecture</th>"
-                       "<th>Region</th><th>Population</th><th>Agents MM</th>"
-                       "<th>MM/1000</th><th>Agences</th><th>Score</th></tr>"
+                     f"<td>{r.region}</td><td>{nf(r.population)}</td><td>{nf(r.n_mobile_money)}</td>"
+                     f"<td>{nf(r.mm_pour_1000,2)}</td><td>{nf(r.n_agences)}</td>"
+                     f"<td><span class='badge' style='background:{col}'>{nf(r.score_priorite,1)}</span></td></tr>")
+        return ui.HTML(f"<div style='max-height:420px;overflow:auto'><table class='reco'>"
+                       f"<tr><th>{t('th_rank')}</th><th>{t('th_prefecture')}</th>"
+                       f"<th>{t('th_region')}</th><th>{t('th_pop')}</th><th>{t('th_mm')}</th>"
+                       f"<th>MM/1000</th><th>{t('th_agences')}</th><th>{t('th_score')}</th></tr>"
                        f"{rows}</table></div>")
 
     # ==================================================================
-    #  ONGLET RECOMMANDATIONS (interactif)
+    #  RECOMMANDATIONS
     # ==================================================================
     @render.ui
     def tab_reco():
+        lang = L()
         return ui.TagList(
-            ui.div(ui.HTML(f"<span class='badge' style='background:{T.GREEN_DARK}'>"
-                   "Simulateur d'investissement — choisissez un territoire et un objectif"
-                   "</span>"), style="margin-bottom:10px;"),
-            panel("🎛️ Territoire cible (region → prefecture → commune → canton)",
-                ui.div(
-                    ui.input_select("r_region", "Region", REGIONS, selected="Toutes"),
-                    ui.input_select("r_pref", "Prefecture", ["Toutes"], selected="Toutes"),
-                    ui.input_select("r_commune", "Commune", ["Toutes"], selected="Toutes"),
-                    ui.input_select("r_canton", "Canton / localite", ["Toutes"], selected="Toutes"),
-                    style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;")),
-            panel("🎯 Objectifs & couts unitaires",
-                ui.div(
-                    ui.input_slider("r_obj_mm", "Objectif : agents mobile money / 1 000 hab.",
-                                    1.0, 8.0, 3.0, step=0.5),
-                    ui.input_slider("r_obj_ag", "Objectif : agences telecoms / 100 000 hab.",
-                                    0.5, 5.0, 1.5, step=0.5),
-                    ui.input_numeric("r_cout_mm", "Cout unitaire agent MM (FCFA)",
-                                     R.COUT_MM, step=50000),
-                    ui.input_numeric("r_cout_ag", "Cout unitaire agence (FCFA)",
-                                     R.COUT_AGENCE, step=1000000),
-                    style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;")),
+            badge(t("reco_badge")),
+            panel("sliders", "p_reco_geo", ui.div(
+                ui.input_select("r_region", I.t(lang, "region"),
+                                choices_for("region", {}, lang), selected="Toutes"),
+                ui.input_select("r_pref", I.t(lang, "prefecture"), {"Toutes": t("all")}, selected="Toutes"),
+                ui.input_select("r_commune", I.t(lang, "commune"), {"Toutes": t("all")}, selected="Toutes"),
+                ui.input_select("r_canton", I.t(lang, "canton"), {"Toutes": t("all")}, selected="Toutes"),
+                style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;")),
+            panel("bullseye", "p_reco_obj", ui.div(
+                ui.input_slider("r_obj_mm", t("obj_mm"), 1.0, 8.0, 3.0, step=0.5),
+                ui.input_slider("r_obj_ag", t("obj_ag"), 0.5, 5.0, 1.5, step=0.5),
+                ui.input_numeric("r_cout_mm", t("cost_mm"), R.COUT_MM, step=50000),
+                ui.input_numeric("r_cout_ag", t("cost_ag"), R.COUT_AGENCE, step=1000000),
+                style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;")),
             ui.output_ui("reco_result"),
-            panel("💰 Budget d'investissement par prefecture prioritaire (objectif choisi)",
-                  ui.output_ui("reco_chart")),
-            panel("📋 Plan d'investissement detaille", ui.output_ui("reco_table")),
+            panel("money-bill-trend-up", "p_reco_chart", ui.output_ui("reco_chart")),
+            panel("table-list", "p_reco_table", ui.output_ui("reco_table")),
         )
 
-    # cascade propre a l'onglet recommandations
     @reactive.effect
     @reactive.event(input.r_region)
     def _rc_region():
-        ui.update_select("r_pref", choices=cascade_opts(
-            "prefecture", {"region": input.r_region()}), selected="Toutes")
-        ui.update_select("r_commune", choices=["Toutes"], selected="Toutes")
-        ui.update_select("r_canton", choices=["Toutes"], selected="Toutes")
+        ui.update_select("r_pref", choices=choices_for(
+            "prefecture", {"region": input.r_region()}, L()), selected="Toutes")
+        ui.update_select("r_commune", choices=choices_for("commune", {}, L()), selected="Toutes")
+        ui.update_select("r_canton", choices=choices_for("canton", {}, L()), selected="Toutes")
 
     @reactive.effect
     @reactive.event(input.r_pref)
     def _rc_pref():
-        ui.update_select("r_commune", choices=cascade_opts(
-            "commune", {"region": input.r_region(),
-                        "prefecture": input.r_pref()}), selected="Toutes")
-        ui.update_select("r_canton", choices=["Toutes"], selected="Toutes")
+        ui.update_select("r_commune", choices=choices_for(
+            "commune", {"region": input.r_region(), "prefecture": input.r_pref()},
+            L()), selected="Toutes")
+        ui.update_select("r_canton", choices=choices_for("canton", {}, L()), selected="Toutes")
 
     @reactive.effect
     @reactive.event(input.r_commune)
     def _rc_commune():
-        ui.update_select("r_canton", choices=cascade_opts(
+        ui.update_select("r_canton", choices=choices_for(
             "canton", {"region": input.r_region(), "prefecture": input.r_pref(),
-                       "commune": input.r_commune()}), selected="Toutes")
+                       "commune": input.r_commune()}, L()), selected="Toutes")
 
     @reactive.calc
     def rsel():
@@ -747,39 +721,33 @@ def server(input, output, session):
         obj_mm, obj_ag, c_mm, c_ag = reco_params()
         s = rsel()
         pop, n_mm, n_ag, _ = unit_counts(s)
-        titre = unit_label(s)
+        titre = unit_label(s, L())
         if not pop:
-            return ui.HTML(f"""
-            <div class="reco-card" style="border-color:{T.RED}">
-              <h3 style="margin:0 0 6px;color:{T.RED}">🎯 {titre}</h3>
-              <p style="font-size:14px">Offre recensee : <b>{nf(n_mm)}</b> agents mobile
-              money, <b>{nf(n_ag)}</b> agences telecoms.</p>
-              <p style="font-size:13px;color:#8c1c2b">La population de reference n'est pas
-              disponible a ce niveau de detail : l'estimation du besoin et du budget
-              n'est calculable qu'a partir de la commune ou de la prefecture. Selectionnez
-              un niveau superieur pour le chiffrage.</p></div>""")
+            return ui.HTML(f"""<div class="reco-card" style="border-color:{T.RED}">
+              <h3 style="margin:0 0 6px;color:{T.RED}">{ic('bullseye')} {titre}</h3>
+              <p style="font-size:14px">{t('reco_nopop', mm=nf(n_mm), ag=nf(n_ag))}</p>
+              <p style="font-size:13px;color:#8c1c2b">{t('reco_nopop2')}</p></div>""")
         e = R.compute(pop, n_mm, n_ag, obj_mm, obj_ag, c_mm, c_ag)
         return ui.HTML(f"""
         <div class="reco-card">
-          <h3 style="margin:0 0 8px;color:{T.GREEN_DARK}">🎯 {titre}</h3>
+          <h3 style="margin:0 0 8px;color:{T.GREEN_DARK}">{ic('bullseye')} {titre}</h3>
           <p style="margin:0 0 10px;font-size:13px;color:#41524c">
-            Population {META['annee_pop']} : <b>{nf(pop)}</b> hab. —
-            offre actuelle : <b>{nf(n_mm)}</b> agents MM ({e['mm_pour_1000_actuel']} /1000),
-            <b>{nf(n_ag)}</b> agences ({e['ag_pour_100k_actuel']} /100k).</p>
+            {t('reco_offer', y=META['annee_pop'], pop=nf(pop), mm=nf(n_mm),
+               d1=e['mm_pour_1000_actuel'], ag=nf(n_ag), d2=e['ag_pour_100k_actuel'])}</p>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:12px">
             <div class="reco-card" style="border-color:{T.GREEN}">
               <div class="reco-num">+{nf(e['besoin_mm'])}</div>
-              <div>agents mobile money a creer<br/><small>pour atteindre {obj_mm} /1000 hab.</small></div></div>
+              <div>{t('reco_need_mm')}<br/><small>{t('reco_reach', v=obj_mm)}</small></div></div>
             <div class="reco-card" style="border-color:{T.YELLOW}">
               <div class="reco-num">+{nf(e['besoin_ag'])}</div>
-              <div>agences telecoms a ouvrir<br/><small>pour atteindre {obj_ag} /100k hab.</small></div></div>
+              <div>{t('reco_need_ag')}<br/><small>{t('reco_reach_ag', v=obj_ag)}</small></div></div>
           </div>
           <div class="invest-box">
-            <div class="b fcfa"><div>Investissement total</div>
+            <div class="b fcfa">{ic('sack-dollar')}<div>{t('reco_total')}</div>
               <div class="amt">{R.fmt_fcfa(e['cout_fcfa'])}</div></div>
-            <div class="b eur"><div>Equivalent euros</div>
+            <div class="b eur">{ic('euro-sign')}<div>{t('reco_eur')}</div>
               <div class="amt">{R.fmt_eur(e['cout_eur'])}</div>
-              <div style="font-size:11px;opacity:.8">parite 1 € = {FCFA} FCFA</div></div>
+              <div style="font-size:11px;opacity:.8">{t('reco_parite', v=FCFA)}</div></div>
           </div>
         </div>""")
 
@@ -790,8 +758,7 @@ def server(input, output, session):
         for r in PREF.itertuples():
             e = R.compute(int(r.population), int(r.n_mobile_money), int(r.n_agences),
                           obj_mm, obj_ag, c_mm, c_ag)
-            e["prefecture"] = r.prefecture; e["region"] = r.region
-            e["rang"] = int(r.rang_priorite)
+            e.update(prefecture=r.prefecture, region=r.region, rang=int(r.rang_priorite))
             recs.append(e)
         return pd.DataFrame(recs)
 
@@ -801,124 +768,95 @@ def server(input, output, session):
         return T.highchart({
             "chart": {"type": "bar"}, "title": {"text": None},
             "xAxis": {"categories": d["prefecture"].tolist()},
-            "yAxis": {"title": {"text": "Investissement (millions FCFA)"}},
-            "tooltip": {"pointFormatter": None,
-                        "pointFormat": "<b>{point.y:,.0f}</b> M FCFA"},
+            "yAxis": {"title": {"text": t("ax_invest")}},
+            "tooltip": {"pointFormat": "<b>{point.y:,.0f}</b> M FCFA"},
             "plotOptions": {"bar": {"color": T.GREEN_DARK, "borderRadius": 2}},
-            "series": [{"name": "Investissement (M FCFA)",
-                        "data": (d["cout_fcfa"] / 1e6).round(1).tolist()}],
+            "series": [{"name": t("s_invest"), "data": (d["cout_fcfa"] / 1e6).round(1).tolist()}],
         }, height=440)
 
     @render.ui
     def reco_table():
         d = reco_plan().sort_values("rang")
-        tot_f = d["cout_fcfa"].sum(); tot_e = d["cout_eur"].sum()
+        tot_f, tot_e = d["cout_fcfa"].sum(), d["cout_eur"].sum()
         rows = "".join(
             f"<tr><td>{int(r.rang)}</td><td><b>{r.prefecture}</b></td><td>{r.region}</td>"
             f"<td>+{nf(r.besoin_mm)}</td><td>+{nf(r.besoin_ag)}</td>"
             f"<td>{R.fmt_fcfa(r.cout_fcfa)}</td><td>{R.fmt_eur(r.cout_eur)}</td></tr>"
             for r in d.itertuples())
         return ui.HTML(
-            f"<p style='font-size:13px'>Budget national pour l'objectif choisi : "
-            f"<b style='color:{T.GREEN_DARK}'>{R.fmt_fcfa(tot_f)}</b> "
-            f"(≈ {R.fmt_eur(tot_e)}).</p>"
-            "<div style='max-height:380px;overflow:auto'><table class='reco'>"
-            "<tr><th>Rang</th><th>Prefecture</th><th>Region</th><th>+Agents MM</th>"
-            "<th>+Agences</th><th>Investissement FCFA</th><th>≈ EUR</th></tr>"
-            f"{rows}</table></div>")
+            f"<p style='font-size:13px'>{t('reco_natbudget', f=R.fmt_fcfa(tot_f), e=R.fmt_eur(tot_e))}</p>"
+            f"<div style='max-height:380px;overflow:auto'><table class='reco'>"
+            f"<tr><th>{t('th_rank')}</th><th>{t('th_prefecture')}</th><th>{t('th_region')}</th>"
+            f"<th>{t('th_needmm')}</th><th>{t('th_needag')}</th><th>{t('th_invest')}</th>"
+            f"<th>{t('th_eur')}</th></tr>{rows}</table></div>")
 
     # ==================================================================
-    #  ONGLET CARTE
+    #  CARTE
     # ==================================================================
     @render.ui
     def tab_carte():
-        return ui.TagList(
-            panel("🗺️ Carte nationale interactive",
-                ui.div(
-                    ui.input_select("c_ind", "Indicateur", {
-                        "mm_pour_1000": "Agents mobile money / 1 000 hab.",
-                        "agences_pour_100k": "Agences telecoms / 100 000 hab.",
-                        "score_priorite": "Score de priorite",
-                        "population": "Population 2026",
-                        "n_mobile_money": "Nombre d'agents mobile money",
-                    }, selected="mm_pour_1000"),
-                    ui.input_checkbox("c_pts", "Afficher les infrastructures (points)", False),
-                    style="display:flex;gap:18px;align-items:end;margin-bottom:8px;flex-wrap:wrap"),
-                ui.output_ui("carte_map")),
-        )
+        inds = {"mm_pour_1000": t("ind_mm1000"), "agences_pour_100k": t("ind_ag100k"),
+                "score_priorite": t("ind_score"), "population": t("ind_pop"),
+                "n_mobile_money": t("ind_nmm")}
+        return panel("map", "p_carte", ui.div(
+            ui.input_select("c_ind", t("c_indic"), inds, selected="mm_pour_1000"),
+            ui.input_checkbox("c_pts", t("c_points"), False),
+            style="display:flex;gap:18px;align-items:end;margin-bottom:8px;flex-wrap:wrap"),
+            ui.output_ui("carte_map"))
 
     @render.ui
     def carte_map():
         ind = input.c_ind()
-        labels = {"mm_pour_1000": " /1000", "agences_pour_100k": " /100k",
-                  "score_priorite": " /100", "population": " hab.", "n_mobile_money": " agents"}
+        suff = {"mm_pour_1000": " /1000", "agences_pour_100k": " /100k",
+                "score_priorite": " /100", "population": "", "n_mobile_money": ""}
         scale = T.PRIORITY_SCALE if ind == "score_priorite" else T.GREEN_SCALE
         vals = [{"key": r.key, "name": r.prefecture, "value": float(getattr(r, ind))}
                 for r in PREF.itertuples()]
         points = None
         if input.c_pts():
             colors = {"Togocom": T.GREEN, "Moov": T.YELLOW, "Datacenter": T.RED}
-            points = [{"name": f"{r.nom} ({r.operateur})", "lon": float(r.lon),
-                       "lat": float(r.lat), "color": colors.get(r.operateur, T.GREEN_DARK)}
+            points = [{"name": f"{r.nom} ({r.operateur})", "lon": float(r.lon), "lat": float(r.lat),
+                       "color": colors.get(r.operateur, T.GREEN_DARK)}
                       for r in PTS.itertuples() if pd.notna(r.lon)]
-        return T.highmap(vals, title="", subtitle=labels.get(ind, ""),
-                         scale=scale, points=points,
-                         value_suffix=labels.get(ind, ""), height=560)
+        return T.highmap(vals, subtitle="", scale=scale, points=points,
+                         value_suffix=suff.get(ind, ""), height=560)
 
     # ==================================================================
-    #  ONGLET AUTEUR
+    #  AUTEUR
     # ==================================================================
     @render.ui
     def tab_auteur():
+        lang = L()
+        hood = "".join(f"<li>{x}</li>" for x in I.t(lang, "au_hood_list"))
+        srcs = "".join(f"<li>{x}</li>" for x in I.t(lang, "au_sources_list"))
+        rate = f"{META['taux_croissance']*100:.1f}"
+        about_pop = t("au_pop", y=META["annee_pop"], r=rate)
         return ui.div(
             ui.div(
-                panel("👤 Profil",
-                    ui.HTML("""
-                    <div class="photo-ph" style="height:220px">
-                       <div style="font-size:34px">📷</div>
-                       Emplacement photo de profil<br/>(a inserer)</div>
-                    <h3 style="text-align:center;color:#0B6E4F;margin:12px 0 2px">
-                       Maurice Kodjo SEKOU</h3>
-                    <p style="text-align:center;color:#D21034;font-weight:700;margin:0">
-                       Analyste Statisticien</p>
+                panel("user", "au_profile", ui.HTML(f"""
+                    <div class="photo-ph" style="height:220px"><span class="ic" style="font-size:34px">
+                    {ic('camera')}</span><div>{t('au_photo')}</div></div>
+                    <h3 style="text-align:center;color:#0B6E4F;margin:12px 0 2px">Maurice Kodjo SEKOU</h3>
+                    <p style="text-align:center;color:#D21034;font-weight:700;margin:0">{t('au_role')}</p>
                     <p style="text-align:center;font-size:13px">sekoukodjo4@gmail.com</p>
                     <div style="text-align:center">
                       <span class="badge" style="background:#0B6E4F;margin:2px">Statistique</span>
                       <span class="badge" style="background:#008751;margin:2px">Python</span>
                       <span class="badge" style="background:#FFCE00;color:#1c2b27;margin:2px">R / Shiny</span>
-                      <span class="badge" style="background:#D21034;margin:2px">SIG</span>
+                      <span class="badge" style="background:#D21034;margin:2px">SIG / GIS</span>
                       <span class="badge" style="background:#4c5a55;margin:2px">Machine Learning</span>
                     </div>""")),
                 ui.div(
-                    panel("ℹ️ A propos de ce projet",
-                        ui.HTML(f"""<p style="font-size:14px;line-height:1.6">
-                        Ce tableau de bord, developpe dans le cadre du
-                        <b>Data Challenge — Economie Numerique</b> du <b>Togo AI Lab</b>,
-                        dresse un diagnostic de l'acces aux telecommunications et services
-                        numeriques au Togo. Il cartographie les infrastructures
-                        (agences telecoms, datacenters), analyse la couverture des services
-                        (mobile money) au regard de la population, identifie les
-                        <b>zones blanches</b> et propose des <b>recommandations
-                        d'investissement interactives</b>.</p>
-                        <p style="font-size:13px;color:#41524c">Population de reference :
-                        projection <b>{META['annee_pop']}</b> a partir du RGPH-5 (2022),
-                        taux de croissance moyen {META['taux_croissance']*100:.1f} %/an.</p>""")),
+                    panel("circle-info", "au_about", ui.HTML(
+                        f"<p style='font-size:14px;line-height:1.6'>{t('au_about_txt')}</p>"
+                        f"<p style='font-size:13px;color:#41524c'>{about_pop}</p>")),
                     ui.div(
-                        panel("⚙️ Sous le capot", ui.HTML(
-                            "<ul style='font-size:13px;line-height:1.7'>"
-                            "<li>Pretraitement Python : nettoyage, fusion, indicateurs</li>"
-                            "<li>Projection demographique 2026 (taux 2,3 %)</li>"
-                            "<li>Score de priorite + simulation de couts</li>"
-                            "<li>Donnees pre-agregees en .parquet (chargement rapide)</li>"
-                            "<li>Shiny for Python · Highcharts · Highmaps</li></ul>")),
-                        panel("🗄️ Sources de donnees", ui.HTML(
-                            "<ul style='font-size:13px;line-height:1.7'>"
-                            "<li>geodata.gouv.tg — agences telecoms, mobile money, datacenters</li>"
-                            "<li>RGPH-5 (2022) — population</li>"
-                            "<li>geoBoundaries — limites administratives</li></ul>")),
+                        panel("gear", "au_hood", ui.HTML(
+                            f"<ul style='font-size:13px;line-height:1.7'>{hood}</ul>")),
+                        panel("database", "au_sources", ui.HTML(
+                            f"<ul style='font-size:13px;line-height:1.7'>{srcs}</ul>")),
                         class_="grid-2")),
-                class_="author-wrap"),
-        )
+                class_="author-wrap"))
 
 
 app = App(app_ui, server, static_assets=Path(__file__).parent / "www")

@@ -106,7 +106,7 @@ def placeholder(s, x, y, w, h, label):
     sp.shadow.inherit = False
     tf = sp.text_frame; tf.word_wrap = True; tf.vertical_anchor = MSO_ANCHOR.MIDDLE
     p = tf.paragraphs[0]; p.alignment = PP_ALIGN.CENTER
-    r = p.add_run(); r.text = "📷 " + label
+    r = p.add_run(); r.text = "[ ] " + label
     r.font.size = Pt(14); r.font.color.rgb = GREY; r.font.italic = True
     return sp
 

@@ -4,6 +4,9 @@ Diagnostic territorial de l'economie numerique togolaise (agences telecoms, agen
 mobile money, datacenters) rapporte a la population, identification des **zones
 blanches** et **simulateur d'investissement** (FCFA / EUR).
 
+**Interface bilingue Francais / Anglais** (bascule FR/EN en haut a droite) —
+**aucune emoji** : icones Font Awesome integrees (`faicons`).
+
 **Data Challenge — Economie Numerique · Togo AI Lab**
 Auteur : *Maurice Kodjo SEKOU — Analyste Statisticien*
 Stack : **Shiny for Python · Highcharts / Highmaps** (embarques localement).

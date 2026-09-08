@@ -2,6 +2,7 @@
 shiny>=1.2
 pandas>=2.0
 pyarrow>=14
+faicons>=0.2
 
 # --- Generation des rapports (Word / PowerPoint / figures) ---
 # (facultatif pour le deploiement du dashboard seul)
