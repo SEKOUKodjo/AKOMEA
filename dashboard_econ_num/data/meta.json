@@ -1,0 +1,23 @@
+{
+  "national_pop_2022": 8095498.0,
+  "national_pop_2026": 8866375,
+  "taux_croissance": 0.023,
+  "annee_census": 2022,
+  "facteur_projection": 1.0952,
+  "pop_prefectures_couvertes": 8866372.0,
+  "pop_2022_couverte": 8095498.0,
+  "n_agences_telecom": 90,
+  "n_togocom": 62,
+  "n_moov": 28,
+  "n_datacenters": 3,
+  "n_mobile_money": 19788,
+  "n_prefectures": 39,
+  "n_regions": 5,
+  "n_cantons": 373,
+  "n_zones_blanches": 78,
+  "mm_pour_1000_national": 2.23,
+  "agences_pour_100k_national": 1.02,
+  "fcfa_per_eur": 655.957,
+  "pref_top_priorite": "Kpendjal",
+  "annee_pop": 2026
+}
