@@ -146,3 +146,11 @@ L'import est également disponible depuis l'interface web (page **Synchroniser**
 
 Projet **Groupe 9** — ISSEA (Institut Sous-régional de Statistique et d'Économie Appliquée).
 "# AKOMEA"  
+
+---
+
+## Personal Evolution Intelligence (PEI)
+
+Le dossier [`personal_evolution/`](personal_evolution/README.md) contient PEI, un système
+personnel et local de suivi, d'analyse et de prédiction de l'évolution personnelle
+(FastAPI, SQLite, PWA mobile, Shiny for Python). Voir son README pour l'installation.

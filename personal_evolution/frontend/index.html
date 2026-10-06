@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#006A4E">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="PEI">
+  <title>PEI</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icons/logo.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icons/icon-180.png">
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+<!--ICON_SPRITE-->
+<header class="top">
+  <div class="flag-band"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="top-inner">
+    <a class="brand" href="#/">
+      <span class="brand-mark"><img src="/icons/logo.svg" alt=""></span>
+      <span class="brand-text"><b>Personal Evolution Intelligence</b><small id="top-sub">Observer, comprendre, progresser</small></span>
+    </a>
+    <button class="top-btn" id="btn-search" title="Mémoire" aria-label="Mémoire"><svg class="ic"><use href="#i-search"/></svg></button>
+  </div>
+</header>
+<main id="app"><div class="loading"><span class="spinner"></span></div></main>
+<nav class="bottom">
+  <div class="inner">
+    <a href="#/" data-r="accueil"><svg class="ic"><use href="#i-home"/></svg>Accueil</a>
+    <a href="#/matin" data-r="matin"><svg class="ic"><use href="#i-sun"/></svg>Matin</a>
+    <a href="#/journee" data-r="journee"><svg class="ic"><use href="#i-clock"/></svg>Journée</a>
+    <a href="#/soir" data-r="soir"><svg class="ic"><use href="#i-moon"/></svg>Soir</a>
+    <a href="#/plus" data-r="plus"><svg class="ic"><use href="#i-grid"/></svg>Plus</a>
+  </div>
+</nav>
+<div class="toast" id="toast"></div>
+<script src="/src/app.js"></script>
+</body>
+</html>

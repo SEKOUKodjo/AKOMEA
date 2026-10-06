@@ -1,0 +1,10 @@
+# Données personnelles : jamais versionnées
+data/*.db
+data/*.db-wal
+data/*.db-shm
+storage/**
+!storage/*/
+!storage/*/.gitkeep
+backups/
+*.pem
+*.key
