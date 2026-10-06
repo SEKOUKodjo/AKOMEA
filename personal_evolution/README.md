@@ -13,6 +13,22 @@ Téléphone (PWA)  ──Wi-Fi local──▶  FastAPI (PC)  ──▶  SQLite +
 Couleurs du drapeau togolais (vert `#006A4E`, jaune `#FFCE00`, rouge `#D21034`, blanc),
 icônes dessinées en Python (`backend/icons.py`), aucun emoji.
 
+## Contenu du dossier
+
+| Élément | Description |
+|---|---|
+| `README.md` | ce fichier : installation et utilisation |
+| `docs/RAPPORT.pdf` | rapport explicatif complet (conception, méthodes, résultats, limites) |
+| `docs/RAPPORT.md` | même rapport au format texte |
+| `docs/captures/` | captures d'écran du téléphone et du tableau de bord |
+| `backend/`, `ai/`, `frontend/`, `dashboard/` | code source |
+| `tests/` | tests automatisés |
+| `scripts/generer_rapport.py` | régénère le rapport (`pip install reportlab`) |
+
+## Prérequis
+
+Python 3.10 ou plus récent, un PC et un téléphone connectés au même Wi-Fi.
+
 ## Démarrage
 
 ```bash
