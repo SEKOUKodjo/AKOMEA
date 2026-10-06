@@ -1,0 +1,354 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2810" height="2138" viewBox="0 0 2810 2138" font-family="Helvetica, Arial, sans-serif">
+<rect width="2810" height="2138" fill="#FFFFFF"/>
+<rect x="0" y="0" width="843.0" height="10" fill="#D21034"/>
+<rect x="843.0" y="0" width="393.40000000000003" height="10" fill="#FFCE00"/>
+<rect x="1236.4" y="0" width="393.40000000000003" height="10" fill="#006A4E"/>
+<rect x="1629.8000000000002" y="0" width="393.40000000000003" height="10" fill="#FFCE00"/>
+<rect x="2023.2" y="0" width="393.40000000000003" height="10" fill="#006A4E"/>
+<rect x="2416.6000000000004" y="0" width="393.40000000000003" height="10" fill="#FFCE00"/>
+<line x1="110.0" y1="374.0" x2="163.1" y2="442.0" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="260.0" y1="374.0" x2="206.9" y2="442.0" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="330.0" y1="196.1" x2="862.0" y2="156.2" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="1250.0" y1="188.6" x2="1024.7" y2="160.1" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="910.0" y1="510.3" x2="1054.0" y2="357.6" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="1250.0" y1="263.6" x2="1135.9" y2="308.2" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="1540.0" y1="181.2" x2="1639.7" y2="163.4" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="1880.0" y1="168.6" x2="1795.7" y2="159.1" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="1943.1" y1="640.0" x2="1743.3" y2="447.3" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="1540.0" y1="303.5" x2="1676.2" y2="394.2" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="910.0" y1="639.1" x2="1004.0" y2="623.0" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="1250.0" y1="633.7" x2="1158.7" y2="621.0" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="1395.0" y1="374.0" x2="1395.0" y2="423.0" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="1395.0" y1="520.0" x2="1395.0" y2="481.0" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="1880.0" y1="705.4" x2="1797.0" y2="697.7" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="1540.0" y1="670.3" x2="1634.3" y2="680.9" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="910.0" y1="842.0" x2="1630.0" y2="842.0" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="1880.0" y1="776.5" x2="1770.4" y2="820.0" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="910.0" y1="800.3" x2="1051.0" y2="932.7" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="1250.0" y1="988.1" x2="1156.5" y2="972.6" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="1934.6" y1="798.0" x2="1745.9" y2="963.0" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="1540.0" y1="1002.0" x2="1631.7" y2="995.7" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="900.8" y1="908.0" x2="1064.1" y2="1201.5" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="1250.0" y1="1332.0" x2="1122.0" y2="1255.2" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="1540.0" y1="1360.5" x2="1660.1" y2="1312.1" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="1982.1" y1="798.0" x2="1730.5" y2="1261.5" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="2170.0" y1="718.0" x2="2240.0" y2="717.6" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="2480.0" y1="735.1" x2="2405.4" y2="726.4" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="910.0" y1="1175.9" x2="1037.6" y2="1100.1" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="1310.0" y1="784.0" x2="1102.1" y2="1047.0" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="620.0" y1="1261.0" x2="560.0" y2="1260.6" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="330.0" y1="1261.0" x2="390.0" y2="1260.6" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="330.0" y1="1820.0" x2="391.7" y2="1824.3" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="620.0" y1="1814.5" x2="556.1" y2="1821.3" stroke="#5B6A63" stroke-width="1.6"/>
+<rect x="75.9" y="382.0" width="98" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="124.9" y="397.0" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,n parent</text>
+<rect x="196.1" y="382.0" width="98" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="245.1" y="397.0" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,1 enfant</text>
+<rect x="461.5" y="174.0" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="479.0" y="189.0" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,n</text>
+<rect x="1169.4" y="169.6" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="1186.9" y="184.6" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,1</text>
+<rect x="932.8" y="456.5" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="950.3" y="471.5" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,n</text>
+<rect x="1200.6" y="265.1" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="1218.1" y="280.1" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">1,1</text>
+<rect x="1550.4" y="165.2" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="1567.9" y="180.2" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,n</text>
+<rect x="1838.9" y="155.0" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="1856.4" y="170.0" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,1</text>
+<rect x="1869.7" y="575.1" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="1887.2" y="590.1" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,n</text>
+<rect x="1560.6" y="317.9" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="1578.1" y="332.9" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,1</text>
+<rect x="918.8" y="623.6" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="936.3" y="638.6" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,n</text>
+<rect x="1206.9" y="619.2" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="1224.4" y="634.2" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">1,1</text>
+<rect x="1377.5" y="376.7" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="1395.0" y="391.7" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,n</text>
+<rect x="1377.5" y="498.1" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="1395.0" y="513.1" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,1</text>
+<rect x="1839.3" y="692.3" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="1856.8" y="707.3" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,n</text>
+<rect x="1548.9" y="662.3" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="1566.4" y="677.3" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,1</text>
+<rect x="1094.1" y="831.0" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="1111.6" y="846.0" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,n</text>
+<rect x="1831.8" y="777.7" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="1849.3" y="792.7" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,1</text>
+<rect x="932.0" y="826.4" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="949.5" y="841.4" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,n</text>
+<rect x="1206.3" y="972.7" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="1223.8" y="987.7" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">1,1</text>
+<rect x="1864.3" y="833.2" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="1881.8" y="848.2" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,n</text>
+<rect x="1548.2" y="989.3" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="1565.7" y="1004.3" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,1</text>
+<rect x="929.0" y="979.2" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="946.5" y="994.2" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,n</text>
+<rect x="1196.7" y="1299.5" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="1214.2" y="1314.5" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,1</text>
+<rect x="1556.1" y="1336.0" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="1573.6" y="1351.0" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,n</text>
+<rect x="1894.2" y="916.8" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="1911.7" y="931.8" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,1</text>
+<rect x="2172.1" y="706.9" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="2189.6" y="721.9" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,n</text>
+<rect x="2441.6" y="721.6" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="2459.1" y="736.6" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">1,1</text>
+<rect x="928.2" y="1143.7" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="945.7" y="1158.7" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,n</text>
+<rect x="1234.3" y="846.6" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="1251.8" y="861.6" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,1</text>
+<rect x="585.7" y="1249.9" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="603.2" y="1264.9" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,n</text>
+<rect x="329.3" y="1249.9" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="346.8" y="1264.9" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">1,1</text>
+<rect x="329.8" y="1810.2" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="347.3" y="1825.2" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,n</text>
+<rect x="584.6" y="1805.4" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="602.1" y="1820.4" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">1,1</text>
+<rect x="620" y="420" width="290" height="488" rx="8" fill="#FFFFFF" stroke="#006A4E" stroke-width="2.2"/>
+<path d="M620 456 V428 Q620 420 628 420 H902 Q910 420 910 428 V456 Z" fill="#006A4E"/>
+<text x="765.0" y="444" text-anchor="middle" font-size="17" font-weight="bold" fill="#FFFFFF">JOUR</text>
+<text x="632" y="474" font-size="15" fill="#10231C" text-decoration="underline" font-weight="bold">id</text>
+<text x="632" y="496" font-size="15" fill="#10231C">date</text>
+<text x="632" y="518" font-size="15" fill="#10231C">sleep_hours</text>
+<text x="632" y="540" font-size="15" fill="#10231C">sleep_quality</text>
+<text x="632" y="562" font-size="15" fill="#10231C">energy</text>
+<text x="632" y="584" font-size="15" fill="#10231C">motivation</text>
+<text x="632" y="606" font-size="15" fill="#10231C">mood</text>
+<text x="632" y="628" font-size="15" fill="#10231C">stress</text>
+<text x="632" y="650" font-size="15" fill="#10231C">fatigue</text>
+<text x="632" y="672" font-size="15" fill="#10231C">screen_minutes</text>
+<text x="632" y="694" font-size="15" fill="#10231C">sedentary_minutes</text>
+<text x="632" y="716" font-size="15" fill="#10231C">water_liters</text>
+<text x="632" y="738" font-size="15" fill="#10231C">steps</text>
+<text x="632" y="760" font-size="15" fill="#10231C">professional_contribution</text>
+<text x="632" y="782" font-size="15" fill="#10231C">highlight</text>
+<text x="632" y="804" font-size="15" fill="#10231C">general_comment</text>
+<text x="632" y="826" font-size="15" fill="#10231C">morning_done_at</text>
+<text x="632" y="848" font-size="15" fill="#10231C">evening_done_at</text>
+<text x="632" y="870" font-size="15" fill="#10231C">created_at</text>
+<text x="632" y="892" font-size="15" fill="#10231C">updated_at</text>
+<rect x="40" y="40" width="290" height="334" rx="8" fill="#FFFFFF" stroke="#006A4E" stroke-width="2.2"/>
+<path d="M40 76 V48 Q40 40 48 40 H322 Q330 40 330 48 V76 Z" fill="#006A4E"/>
+<text x="185.0" y="64" text-anchor="middle" font-size="17" font-weight="bold" fill="#FFFFFF">OBJECTIF</text>
+<text x="52" y="94" font-size="15" fill="#10231C" text-decoration="underline" font-weight="bold">id</text>
+<text x="52" y="116" font-size="15" fill="#10231C">title</text>
+<text x="52" y="138" font-size="15" fill="#10231C">description</text>
+<text x="52" y="160" font-size="15" fill="#10231C">dimension</text>
+<text x="52" y="182" font-size="15" fill="#10231C">horizon</text>
+<text x="52" y="204" font-size="15" fill="#10231C">status</text>
+<text x="52" y="226" font-size="15" fill="#10231C">start_date</text>
+<text x="52" y="248" font-size="15" fill="#10231C">target_date</text>
+<text x="52" y="270" font-size="15" fill="#10231C">completed_at</text>
+<text x="52" y="292" font-size="15" fill="#10231C">metric</text>
+<text x="52" y="314" font-size="15" fill="#10231C">target_value</text>
+<text x="52" y="336" font-size="15" fill="#10231C">abandon_reason</text>
+<text x="52" y="358" font-size="15" fill="#10231C">created_at</text>
+<rect x="1250" y="40" width="290" height="334" rx="8" fill="#FFFFFF" stroke="#006A4E" stroke-width="2.2"/>
+<path d="M1250 76 V48 Q1250 40 1258 40 H1532 Q1540 40 1540 48 V76 Z" fill="#006A4E"/>
+<text x="1395.0" y="64" text-anchor="middle" font-size="17" font-weight="bold" fill="#FFFFFF">INTENTION</text>
+<text x="1262" y="94" font-size="15" fill="#10231C" text-decoration="underline" font-weight="bold">id</text>
+<text x="1262" y="116" font-size="15" fill="#10231C">dimension</text>
+<text x="1262" y="138" font-size="15" fill="#10231C">category</text>
+<text x="1262" y="160" font-size="15" fill="#10231C">description</text>
+<text x="1262" y="182" font-size="15" fill="#10231C">priority</text>
+<text x="1262" y="204" font-size="15" fill="#10231C">estimated_minutes</text>
+<text x="1262" y="226" font-size="15" fill="#10231C">status</text>
+<text x="1262" y="248" font-size="15" fill="#10231C">actual_minutes</text>
+<text x="1262" y="270" font-size="15" fill="#10231C">result</text>
+<text x="1262" y="292" font-size="15" fill="#10231C">reason</text>
+<text x="1262" y="314" font-size="15" fill="#10231C">position</text>
+<text x="1262" y="336" font-size="15" fill="#10231C">created_at</text>
+<text x="1262" y="358" font-size="15" fill="#10231C">reviewed_at</text>
+<rect x="1250" y="520" width="290" height="268" rx="8" fill="#FFFFFF" stroke="#006A4E" stroke-width="2.2"/>
+<path d="M1250 556 V528 Q1250 520 1258 520 H1532 Q1540 520 1540 528 V556 Z" fill="#006A4E"/>
+<text x="1395.0" y="544" text-anchor="middle" font-size="17" font-weight="bold" fill="#FFFFFF">ACTIVITE</text>
+<text x="1262" y="574" font-size="15" fill="#10231C" text-decoration="underline" font-weight="bold">id</text>
+<text x="1262" y="596" font-size="15" fill="#10231C">dimension</text>
+<text x="1262" y="618" font-size="15" fill="#10231C">category</text>
+<text x="1262" y="640" font-size="15" fill="#10231C">description</text>
+<text x="1262" y="662" font-size="15" fill="#10231C">start_time</text>
+<text x="1262" y="684" font-size="15" fill="#10231C">end_time</text>
+<text x="1262" y="706" font-size="15" fill="#10231C">duration_minutes</text>
+<text x="1262" y="728" font-size="15" fill="#10231C">result</text>
+<text x="1262" y="750" font-size="15" fill="#10231C">planned</text>
+<text x="1262" y="772" font-size="15" fill="#10231C">created_at</text>
+<rect x="1250" y="900" width="290" height="224" rx="8" fill="#FFFFFF" stroke="#006A4E" stroke-width="2.2"/>
+<path d="M1250 936 V908 Q1250 900 1258 900 H1532 Q1540 900 1540 908 V936 Z" fill="#006A4E"/>
+<text x="1395.0" y="924" text-anchor="middle" font-size="17" font-weight="bold" fill="#FFFFFF">REFLEXION</text>
+<text x="1262" y="954" font-size="15" fill="#10231C" text-decoration="underline" font-weight="bold">id</text>
+<text x="1262" y="976" font-size="15" fill="#10231C">dimension</text>
+<text x="1262" y="998" font-size="15" fill="#10231C">kind</text>
+<text x="1262" y="1020" font-size="15" fill="#10231C">content</text>
+<text x="1262" y="1042" font-size="15" fill="#10231C">reference</text>
+<text x="1262" y="1064" font-size="15" fill="#10231C">tags</text>
+<text x="1262" y="1086" font-size="15" fill="#10231C">source_type</text>
+<text x="1262" y="1108" font-size="15" fill="#10231C">created_at</text>
+<rect x="1250" y="1230" width="290" height="378" rx="8" fill="#FFFFFF" stroke="#006A4E" stroke-width="2.2"/>
+<path d="M1250 1266 V1238 Q1250 1230 1258 1230 H1532 Q1540 1230 1540 1238 V1266 Z" fill="#006A4E"/>
+<text x="1395.0" y="1254" text-anchor="middle" font-size="17" font-weight="bold" fill="#FFFFFF">MEDIA</text>
+<text x="1262" y="1284" font-size="15" fill="#10231C" text-decoration="underline" font-weight="bold">id</text>
+<text x="1262" y="1306" font-size="15" fill="#10231C">type</text>
+<text x="1262" y="1328" font-size="15" fill="#10231C">moment</text>
+<text x="1262" y="1350" font-size="15" fill="#10231C">dimension</text>
+<text x="1262" y="1372" font-size="15" fill="#10231C">file_path</text>
+<text x="1262" y="1394" font-size="15" fill="#10231C">original_name</text>
+<text x="1262" y="1416" font-size="15" fill="#10231C">mime_type</text>
+<text x="1262" y="1438" font-size="15" fill="#10231C">size_bytes</text>
+<text x="1262" y="1460" font-size="15" fill="#10231C">sha256</text>
+<text x="1262" y="1482" font-size="15" fill="#10231C">caption</text>
+<text x="1262" y="1504" font-size="15" fill="#10231C">transcription</text>
+<text x="1262" y="1526" font-size="15" fill="#10231C">transcription_status</text>
+<text x="1262" y="1548" font-size="15" fill="#10231C">transcription_engine</text>
+<text x="1262" y="1570" font-size="15" fill="#10231C">transcription_error</text>
+<text x="1262" y="1592" font-size="15" fill="#10231C">created_at</text>
+<rect x="1880" y="640" width="290" height="158" rx="8" fill="#FFFFFF" stroke="#006A4E" stroke-width="2.2"/>
+<path d="M1880 676 V648 Q1880 640 1888 640 H2162 Q2170 640 2170 648 V676 Z" fill="#006A4E"/>
+<text x="2025.0" y="664" text-anchor="middle" font-size="17" font-weight="bold" fill="#FFFFFF">SOURCE</text>
+<text x="1892" y="694" font-size="15" fill="#10231C" text-decoration="underline" font-weight="bold">id</text>
+<text x="1892" y="716" font-size="15" fill="#10231C">kind</text>
+<text x="1892" y="738" font-size="15" fill="#10231C">moment</text>
+<text x="1892" y="760" font-size="15" fill="#10231C">raw_text</text>
+<text x="1892" y="782" font-size="15" fill="#10231C">created_at</text>
+<rect x="2480" y="640" width="290" height="224" rx="8" fill="#FFFFFF" stroke="#006A4E" stroke-width="2.2"/>
+<path d="M2480 676 V648 Q2480 640 2488 640 H2762 Q2770 640 2770 648 V676 Z" fill="#006A4E"/>
+<text x="2625.0" y="664" text-anchor="middle" font-size="17" font-weight="bold" fill="#FFFFFF">EXTRACTION</text>
+<text x="2492" y="694" font-size="15" fill="#10231C" text-decoration="underline" font-weight="bold">id</text>
+<text x="2492" y="716" font-size="15" fill="#10231C">engine</text>
+<text x="2492" y="738" font-size="15" fill="#10231C">engine_version</text>
+<text x="2492" y="760" font-size="15" fill="#10231C">proposed</text>
+<text x="2492" y="782" font-size="15" fill="#10231C">validated</text>
+<text x="2492" y="804" font-size="15" fill="#10231C">status</text>
+<text x="2492" y="826" font-size="15" fill="#10231C">created_at</text>
+<text x="2492" y="848" font-size="15" fill="#10231C">validated_at</text>
+<rect x="1880" y="40" width="290" height="290" rx="8" fill="#FFFFFF" stroke="#006A4E" stroke-width="2.2"/>
+<path d="M1880 76 V48 Q1880 40 1888 40 H2162 Q2170 40 2170 48 V76 Z" fill="#006A4E"/>
+<text x="2025.0" y="64" text-anchor="middle" font-size="17" font-weight="bold" fill="#FFFFFF">PREDICTION</text>
+<text x="1892" y="94" font-size="15" fill="#10231C" text-decoration="underline" font-weight="bold">id</text>
+<text x="1892" y="116" font-size="15" fill="#10231C">target</text>
+<text x="1892" y="138" font-size="15" fill="#10231C">subject_type</text>
+<text x="1892" y="160" font-size="15" fill="#10231C">value</text>
+<text x="1892" y="182" font-size="15" fill="#10231C">lower</text>
+<text x="1892" y="204" font-size="15" fill="#10231C">upper</text>
+<text x="1892" y="226" font-size="15" fill="#10231C">model</text>
+<text x="1892" y="248" font-size="15" fill="#10231C">n_training</text>
+<text x="1892" y="270" font-size="15" fill="#10231C">features</text>
+<text x="1892" y="292" font-size="15" fill="#10231C">actual</text>
+<text x="1892" y="314" font-size="15" fill="#10231C">created_at</text>
+<rect x="620" y="1150" width="290" height="224" rx="8" fill="#FFFFFF" stroke="#006A4E" stroke-width="2.2"/>
+<path d="M620 1186 V1158 Q620 1150 628 1150 H902 Q910 1150 910 1158 V1186 Z" fill="#006A4E"/>
+<text x="765.0" y="1174" text-anchor="middle" font-size="17" font-weight="bold" fill="#FFFFFF">COMPETENCE</text>
+<text x="632" y="1204" font-size="15" fill="#10231C" text-decoration="underline" font-weight="bold">id</text>
+<text x="632" y="1226" font-size="15" fill="#10231C">name</text>
+<text x="632" y="1248" font-size="15" fill="#10231C">category</text>
+<text x="632" y="1270" font-size="15" fill="#10231C">dimension</text>
+<text x="632" y="1292" font-size="15" fill="#10231C">description</text>
+<text x="632" y="1314" font-size="15" fill="#10231C">target_level</text>
+<text x="632" y="1336" font-size="15" fill="#10231C">keywords</text>
+<text x="632" y="1358" font-size="15" fill="#10231C">created_at</text>
+<rect x="40" y="1150" width="290" height="224" rx="8" fill="#FFFFFF" stroke="#006A4E" stroke-width="2.2"/>
+<path d="M40 1186 V1158 Q40 1150 48 1150 H322 Q330 1150 330 1158 V1186 Z" fill="#006A4E"/>
+<text x="185.0" y="1174" text-anchor="middle" font-size="17" font-weight="bold" fill="#FFFFFF">EVALUATION</text>
+<text x="52" y="1204" font-size="15" fill="#10231C" text-decoration="underline" font-weight="bold">id</text>
+<text x="52" y="1226" font-size="15" fill="#10231C">date</text>
+<text x="52" y="1248" font-size="15" fill="#10231C">self_rating</text>
+<text x="52" y="1270" font-size="15" fill="#10231C">objective_score</text>
+<text x="52" y="1292" font-size="15" fill="#10231C">evidence_type</text>
+<text x="52" y="1314" font-size="15" fill="#10231C">evidence</text>
+<text x="52" y="1336" font-size="15" fill="#10231C">comment</text>
+<text x="52" y="1358" font-size="15" fill="#10231C">created_at</text>
+<rect x="1250" y="1720" width="290" height="378" rx="8" fill="#FFFFFF" stroke="#006A4E" stroke-width="2.2"/>
+<path d="M1250 1756 V1728 Q1250 1720 1258 1720 H1532 Q1540 1720 1540 1728 V1756 Z" fill="#006A4E"/>
+<text x="1395.0" y="1744" text-anchor="middle" font-size="17" font-weight="bold" fill="#FFFFFF">DECISION</text>
+<text x="1262" y="1774" font-size="15" fill="#10231C" text-decoration="underline" font-weight="bold">id</text>
+<text x="1262" y="1796" font-size="15" fill="#10231C">date</text>
+<text x="1262" y="1818" font-size="15" fill="#10231C">title</text>
+<text x="1262" y="1840" font-size="15" fill="#10231C">dimension</text>
+<text x="1262" y="1862" font-size="15" fill="#10231C">context</text>
+<text x="1262" y="1884" font-size="15" fill="#10231C">reasons</text>
+<text x="1262" y="1906" font-size="15" fill="#10231C">alternatives</text>
+<text x="1262" y="1928" font-size="15" fill="#10231C">choice</text>
+<text x="1262" y="1950" font-size="15" fill="#10231C">expected_outcome</text>
+<text x="1262" y="1972" font-size="15" fill="#10231C">confidence</text>
+<text x="1262" y="1994" font-size="15" fill="#10231C">review_date</text>
+<text x="1262" y="2016" font-size="15" fill="#10231C">outcome</text>
+<text x="1262" y="2038" font-size="15" fill="#10231C">outcome_rating</text>
+<text x="1262" y="2060" font-size="15" fill="#10231C">lessons</text>
+<text x="1262" y="2082" font-size="15" fill="#10231C">created_at</text>
+<rect x="1880" y="1720" width="290" height="268" rx="8" fill="#FFFFFF" stroke="#006A4E" stroke-width="2.2"/>
+<path d="M1880 1756 V1728 Q1880 1720 1888 1720 H2162 Q2170 1720 2170 1728 V1756 Z" fill="#006A4E"/>
+<text x="2025.0" y="1744" text-anchor="middle" font-size="17" font-weight="bold" fill="#FFFFFF">EXPERIENCE</text>
+<text x="1892" y="1774" font-size="15" fill="#10231C" text-decoration="underline" font-weight="bold">id</text>
+<text x="1892" y="1796" font-size="15" fill="#10231C">title</text>
+<text x="1892" y="1818" font-size="15" fill="#10231C">hypothesis</text>
+<text x="1892" y="1840" font-size="15" fill="#10231C">intervention</text>
+<text x="1892" y="1862" font-size="15" fill="#10231C">metric</text>
+<text x="1892" y="1884" font-size="15" fill="#10231C">start_date</text>
+<text x="1892" y="1906" font-size="15" fill="#10231C">end_date</text>
+<text x="1892" y="1928" font-size="15" fill="#10231C">status</text>
+<text x="1892" y="1950" font-size="15" fill="#10231C">conclusion</text>
+<text x="1892" y="1972" font-size="15" fill="#10231C">created_at</text>
+<rect x="40" y="1720" width="290" height="180" rx="8" fill="#FFFFFF" stroke="#006A4E" stroke-width="2.2"/>
+<path d="M40 1756 V1728 Q40 1720 48 1720 H322 Q330 1720 330 1728 V1756 Z" fill="#006A4E"/>
+<text x="185.0" y="1744" text-anchor="middle" font-size="17" font-weight="bold" fill="#FFFFFF">PERSONNE</text>
+<text x="52" y="1774" font-size="15" fill="#10231C" text-decoration="underline" font-weight="bold">id</text>
+<text x="52" y="1796" font-size="15" fill="#10231C">name</text>
+<text x="52" y="1818" font-size="15" fill="#10231C">relation</text>
+<text x="52" y="1840" font-size="15" fill="#10231C">notes</text>
+<text x="52" y="1862" font-size="15" fill="#10231C">contact_every_days</text>
+<text x="52" y="1884" font-size="15" fill="#10231C">created_at</text>
+<rect x="620" y="1720" width="290" height="158" rx="8" fill="#FFFFFF" stroke="#006A4E" stroke-width="2.2"/>
+<path d="M620 1756 V1728 Q620 1720 628 1720 H902 Q910 1720 910 1728 V1756 Z" fill="#006A4E"/>
+<text x="765.0" y="1744" text-anchor="middle" font-size="17" font-weight="bold" fill="#FFFFFF">ECHANGE</text>
+<text x="632" y="1774" font-size="15" fill="#10231C" text-decoration="underline" font-weight="bold">id</text>
+<text x="632" y="1796" font-size="15" fill="#10231C">date</text>
+<text x="632" y="1818" font-size="15" fill="#10231C">kind</text>
+<text x="632" y="1840" font-size="15" fill="#10231C">note</text>
+<text x="632" y="1862" font-size="15" fill="#10231C">created_at</text>
+<ellipse cx="185" cy="470" rx="85.0" ry="29.0" fill="#FFF6CC" stroke="#B58F00" stroke-width="2"/>
+<text x="185" y="475" text-anchor="middle" font-size="14" font-weight="bold" fill="#10231C">DECOMPOSER</text>
+<ellipse cx="945" cy="150" rx="85.0" ry="29.0" fill="#FFF6CC" stroke="#B58F00" stroke-width="2"/>
+<text x="945" y="155" text-anchor="middle" font-size="14" font-weight="bold" fill="#10231C">CONTRIBUER</text>
+<ellipse cx="1080" cy="330" rx="85.0" ry="29.0" fill="#FFF6CC" stroke="#B58F00" stroke-width="2"/>
+<text x="1080" y="335" text-anchor="middle" font-size="14" font-weight="bold" fill="#10231C">PREVOIR</text>
+<ellipse cx="1715" cy="150" rx="85.0" ry="29.0" fill="#FFF6CC" stroke="#B58F00" stroke-width="2"/>
+<text x="1715" y="155" text-anchor="middle" font-size="14" font-weight="bold" fill="#10231C">CONCERNER</text>
+<ellipse cx="1715" cy="420" rx="85.0" ry="29.0" fill="#FFF6CC" stroke="#B58F00" stroke-width="2"/>
+<text x="1715" y="425" text-anchor="middle" font-size="14" font-weight="bold" fill="#10231C">EXPRIMER</text>
+<ellipse cx="1080" cy="610" rx="85.0" ry="29.0" fill="#FFF6CC" stroke="#B58F00" stroke-width="2"/>
+<text x="1080" y="615" text-anchor="middle" font-size="14" font-weight="bold" fill="#10231C">REALISER</text>
+<ellipse cx="1395" cy="452" rx="85.0" ry="29.0" fill="#FFF6CC" stroke="#B58F00" stroke-width="2"/>
+<text x="1395" y="457" text-anchor="middle" font-size="14" font-weight="bold" fill="#10231C">CONCRETISER</text>
+<ellipse cx="1715" cy="690" rx="85.0" ry="29.0" fill="#FFF6CC" stroke="#B58F00" stroke-width="2"/>
+<text x="1715" y="695" text-anchor="middle" font-size="14" font-weight="bold" fill="#10231C">RELATER</text>
+<ellipse cx="1715" cy="842" rx="85.0" ry="29.0" fill="#FFF6CC" stroke="#B58F00" stroke-width="2"/>
+<text x="1715" y="847" text-anchor="middle" font-size="14" font-weight="bold" fill="#10231C">SAISIR</text>
+<ellipse cx="1080" cy="960" rx="85.0" ry="29.0" fill="#FFF6CC" stroke="#B58F00" stroke-width="2"/>
+<text x="1080" y="965" text-anchor="middle" font-size="14" font-weight="bold" fill="#10231C">NOTER</text>
+<ellipse cx="1715" cy="990" rx="85.0" ry="29.0" fill="#FFF6CC" stroke="#B58F00" stroke-width="2"/>
+<text x="1715" y="995" text-anchor="middle" font-size="14" font-weight="bold" fill="#10231C">CONSIGNER</text>
+<ellipse cx="1080" cy="1230" rx="85.0" ry="29.0" fill="#FFF6CC" stroke="#B58F00" stroke-width="2"/>
+<text x="1080" y="1235" text-anchor="middle" font-size="14" font-weight="bold" fill="#10231C">ATTACHER</text>
+<ellipse cx="1715" cy="1290" rx="85.0" ry="29.0" fill="#FFF6CC" stroke="#B58F00" stroke-width="2"/>
+<text x="1715" y="1295" text-anchor="middle" font-size="14" font-weight="bold" fill="#10231C">TRANSCRIRE</text>
+<ellipse cx="2325" cy="717" rx="85.0" ry="29.0" fill="#FFF6CC" stroke="#B58F00" stroke-width="2"/>
+<text x="2325" y="722" text-anchor="middle" font-size="14" font-weight="bold" fill="#10231C">ANALYSER</text>
+<ellipse cx="1080" cy="1075" rx="85.0" ry="29.0" fill="#FFF6CC" stroke="#B58F00" stroke-width="2"/>
+<text x="1080" y="1080" text-anchor="middle" font-size="14" font-weight="bold" fill="#10231C">EXERCER</text>
+<ellipse cx="475" cy="1260" rx="85.0" ry="29.0" fill="#FFF6CC" stroke="#B58F00" stroke-width="2"/>
+<text x="475" y="1265" text-anchor="middle" font-size="14" font-weight="bold" fill="#10231C">EVALUER</text>
+<ellipse cx="475" cy="1830" rx="85.0" ry="29.0" fill="#FFF6CC" stroke="#B58F00" stroke-width="2"/>
+<text x="475" y="1835" text-anchor="middle" font-size="14" font-weight="bold" fill="#10231C">ECHANGER</text>
+<text x="2480" y="1730" font-size="16" font-weight="bold" fill="#006A4E">Légende</text>
+<rect x="2480" y="1746" width="44" height="26" rx="4" fill="#FFFFFF" stroke="#006A4E" stroke-width="2"/><rect x="2480" y="1746" width="44" height="9" fill="#006A4E"/>
+<text x="2536" y="1765" font-size="14" fill="#10231C">Entité (identifiant souligné)</text>
+<ellipse cx="2502" cy="1802" rx="22" ry="13" fill="#FFF6CC" stroke="#B58F00" stroke-width="2"/>
+<text x="2536" y="1807" font-size="14" fill="#10231C">Association</text>
+<rect x="2480" y="1833" width="44" height="20" rx="4" fill="#FFFFFF" stroke="#D21034"/><text x="2502" y="1848" text-anchor="middle" font-size="12" font-weight="bold" fill="#D21034">0,n</text>
+<text x="2536" y="1849" font-size="14" fill="#10231C">Cardinalité min,max</text>
+<text x="2480" y="1900" font-size="13" fill="#5B6A63">Modèle Conceptuel de Données, méthode Merise</text>
+<text x="2480" y="1920" font-size="13" fill="#5B6A63">Personal Evolution Intelligence, 06/10/2026</text>
+</svg>

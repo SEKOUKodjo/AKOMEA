@@ -123,6 +123,8 @@ Le tableau de bord Shiny et l'API utilisent exactement les mêmes fonctions d'an
 | Person, Interaction | Relations et échanges, rythme de contact souhaité |
 | Prediction | Prédiction émise, intervalle, modèle, valeur réelle observée ensuite |
 
+Le Modèle Conceptuel de Données complet (schéma Merise, associations, cardinalités, dictionnaire des données et MLD) est présenté dans le document docs/MCD.pdf.
+
 Les fichiers lourds restent dans storage/ ; SQLite ne conserve que leurs métadonnées. Un index plein texte (FTS5, insensible aux accents) est mis à jour automatiquement à chaque écriture.
 
 ## 7. Fonctionnement quotidien

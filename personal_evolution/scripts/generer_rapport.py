@@ -144,6 +144,8 @@ table(["Entité", "Contenu principal"],
       ["Person, Interaction", "Relations et échanges, rythme de contact souhaité"],
       ["Prediction", "Prédiction émise, intervalle, modèle, valeur réelle observée ensuite"],
       widths=[0.25, 0.75])
+p("Le Modèle Conceptuel de Données complet (schéma Merise, associations, cardinalités, dictionnaire des "
+  "données et MLD) est présenté dans le document docs/MCD.pdf.")
 p("Les fichiers lourds restent dans storage/ ; SQLite ne conserve que leurs métadonnées. Un index plein texte "
   "(FTS5, insensible aux accents) est mis à jour automatiquement à chaque écriture.")
 

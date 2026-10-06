@@ -20,10 +20,13 @@ icônes dessinées en Python (`backend/icons.py`), aucun emoji.
 | `README.md` | ce fichier : installation et utilisation |
 | `docs/RAPPORT.pdf` | rapport explicatif complet (conception, méthodes, résultats, limites) |
 | `docs/RAPPORT.md` | même rapport au format texte |
+| `docs/MCD.pdf` | Modèle Conceptuel de Données : schéma, associations, cardinalités, propriétés de chaque table, MLD |
+| `docs/MCD.md`, `docs/mcd.svg`, `docs/mcd.png` | même contenu en texte, schéma vectoriel et image |
 | `docs/captures/` | captures d'écran du téléphone et du tableau de bord |
 | `backend/`, `ai/`, `frontend/`, `dashboard/` | code source |
 | `tests/` | tests automatisés |
 | `scripts/generer_rapport.py` | régénère le rapport (`pip install reportlab`) |
+| `scripts/generer_mcd.py` | régénère le MCD à partir des modèles du code |
 
 ## Prérequis
 
