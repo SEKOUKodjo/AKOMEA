@@ -22,11 +22,13 @@ icônes dessinées en Python (`backend/icons.py`), aucun emoji.
 | `docs/RAPPORT.md` | même rapport au format texte |
 | `docs/MCD.pdf` | Modèle Conceptuel de Données : schéma, associations, cardinalités, propriétés de chaque table, MLD |
 | `docs/MCD.md`, `docs/mcd.svg`, `docs/mcd.png` | même contenu en texte, schéma vectoriel et image |
+| `docs/windesign/` | script SQL et guide pour ouvrir le MCD dans WinDesign (rétroconception) |
 | `docs/captures/` | captures d'écran du téléphone et du tableau de bord |
 | `backend/`, `ai/`, `frontend/`, `dashboard/` | code source |
 | `tests/` | tests automatisés |
 | `scripts/generer_rapport.py` | régénère le rapport (`pip install reportlab`) |
 | `scripts/generer_mcd.py` | régénère le MCD à partir des modèles du code |
+| `scripts/exporter_windesign.py` | régénère le script SQL pour WinDesign |
 
 ## Prérequis
 
