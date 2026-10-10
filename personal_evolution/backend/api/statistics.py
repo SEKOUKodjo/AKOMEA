@@ -6,7 +6,7 @@ import socket
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from sqlalchemy.orm import Session
 
 from ai.ml import predict
@@ -16,7 +16,7 @@ from .. import models as m
 from ..config import settings
 from ..domain import DIMENSIONS, HORIZONS, INTENTION_STATUSES, REFLECTION_KINDS
 from ..schemas import PredictIn, ScenarioIn
-from ..services import analytics, ask, backup, memory
+from ..services import analytics, ask, backup, export_excel, memory
 from .deps import get_session
 
 router = APIRouter()
@@ -90,6 +90,17 @@ def stats_weekdays(session: Session = Depends(get_session)):
 @router.get("/statistics/compare", tags=["statistiques"])
 def stats_compare(a_start: date, a_end: date, b_start: date, b_end: date, session: Session = Depends(get_session)):
     return analytics.compare_periods(session, (a_start, a_end), (b_start, b_end))
+
+
+@router.get("/export/excel", tags=["export"])
+def export_excel_file(days: int | None = None, start: date | None = None, end: date | None = None,
+                      session: Session = Depends(get_session)):
+    """Classeur Excel : données de la période et indicateurs calculés par formules."""
+    start, end = _period(days, start, end)
+    content = export_excel.export_bytes(session, start, end)
+    name = export_excel.filename(start, end)
+    return Response(content, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
 
 @router.get("/insights", tags=["recommandations"])

@@ -23,6 +23,7 @@ icônes dessinées en Python (`backend/icons.py`), aucun emoji.
 | `docs/MCD.pdf` | Modèle Conceptuel de Données : schéma, associations, cardinalités, propriétés de chaque table, MLD |
 | `docs/MCD.md`, `docs/mcd.svg`, `docs/mcd.png` | même contenu en texte, schéma vectoriel et image |
 | `docs/windesign/` | script SQL et guide pour ouvrir le MCD dans WinDesign (rétroconception) |
+| `docs/exemple_export_PEI.xlsx` | exemple d'export Excel sur 90 jours de données fictives |
 | `docs/captures/` | captures d'écran du téléphone et du tableau de bord |
 | `backend/`, `ai/`, `frontend/`, `dashboard/` | code source |
 | `tests/` | tests automatisés |
@@ -62,10 +63,34 @@ Autres commandes :
 | `python run.py serve` | API et interface téléphone seules |
 | `python run.py dashboard` | tableau de bord Shiny seul |
 | `python run.py backup --to /media/cle_usb` | sauvegarde (base cohérente et médias) en archive zip |
+| `python run.py export --days 90` | export Excel des données et des indicateurs (`--start`, `--end`, `--out`) |
 | `python run.py reindex` | reconstruit l'index de la mémoire |
 | `PEI_PIN=4821 python run.py all` | protège l'accès par un code PIN |
 | `python run.py serve --cert cert.pem --key key.pem` | HTTPS local, active l'enregistrement direct au micro |
 | `python -m pytest` | tests automatisés |
+
+## Export Excel
+
+Trois façons d'exporter, avec le choix de la période (30 jours, 3 mois, 12 mois, tout, ou dates précises) :
+
+* sur le téléphone : **Plus**, puis **Export Excel** (ou en bas de la page **Bilan**) ;
+* dans le tableau de bord : bouton **Exporter en Excel**, pour la période choisie à gauche ;
+* en ligne de commande : `python run.py export --days 90 --out mon_export.xlsx`.
+
+Le classeur contient les données brutes et des indicateurs calculés par **formules Excel** :
+si tu corriges une valeur dans Excel, les indicateurs se recalculent.
+
+| Feuille | Contenu |
+|---|---|
+| Synthese | indicateurs clés (régularité, taux de réalisation, heures, écart d'estimation, sommeil, énergie, humeur), tableau par dimension, deux graphiques |
+| Quotidien | une ligne par jour : intentions, réalisations, taux, temps prévu et réalisé, minutes par dimension, indicateurs déclarés |
+| Hebdomadaire, Mensuel | mêmes indicateurs agrégés par semaine et par mois |
+| Intentions, Activites, Reflexions | données brutes de la période |
+| Calibration | temps prévu contre temps réel par type d'activité |
+| Abandons | taux de non réalisation par type d'activité, raisons citées |
+| Objectifs, Competences, Evaluations | progression des objectifs et des compétences |
+| Analyses | tendances, associations, jours atypiques, recommandations (valeurs calculées par PEI) |
+| Decisions, Experiences, Relations, Medias | journaux et métadonnées |
 
 ## Utilisation quotidienne
 

@@ -176,3 +176,27 @@ def test_frontend_and_icons(client):
     assert 'id="i-sun"' in html  # sprite d'icônes intégré
     assert client.get("/icons/icon-192.png").content[:4] == b"\x89PNG"
     assert client.get("/manifest.json").json()["theme_color"] == "#006A4E"
+
+
+def test_excel_export(client):
+    from openpyxl import load_workbook
+
+    empty = client.get("/api/export/excel")
+    assert empty.status_code == 200 and empty.content[:2] == b"PK"  # base vide : classeur valide
+
+    from backend.db import session_scope
+    from backend.services import demo
+
+    with session_scope() as s:
+        demo.seed(s, n_days=40)
+    r = client.get("/api/export/excel", params={"days": 30})
+    assert r.status_code == 200
+    assert "spreadsheetml" in r.headers["content-type"] and ".xlsx" in r.headers["content-disposition"]
+    wb = load_workbook(io.BytesIO(r.content))
+    for sheet in ["Synthese", "Quotidien", "Hebdomadaire", "Mensuel", "Intentions", "Activites", "Calibration",
+                  "Abandons", "Objectifs", "Competences", "Analyses", "Decisions"]:
+        assert sheet in wb.sheetnames
+    q = wb["Quotidien"]
+    assert q.max_row == 31  # en-tête + 30 jours
+    assert str(q["D2"].value).startswith("=COUNTIFS(")  # indicateurs calculés par formules
+    assert wb["Synthese"]["B11"].value.startswith("=IFERROR(SUM(")

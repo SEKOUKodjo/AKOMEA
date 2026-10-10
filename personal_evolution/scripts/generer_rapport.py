@@ -254,6 +254,21 @@ table(["Onglet", "Contenu"],
 img("05_dashboard_vue_generale.png", "Vue générale du tableau de bord", 7.0)
 img("07_dashboard_analyse.png", "Onglet Analyse : corrélations de Spearman et associations les plus nettes", 7.0)
 img("08_dashboard_prediction.png", "Onglet Prédiction : simulation d'un rythme de travail", 7.0)
+h2("12.1 Export Excel")
+p("Les données et les indicateurs s'exportent dans un classeur Excel, depuis le téléphone (Plus, puis Export Excel), "
+  "depuis le tableau de bord (bouton Exporter en Excel) ou en ligne de commande (python run.py export --days 90). "
+  "La période est au choix. Les indicateurs sont des formules Excel qui pointent vers les données brutes du classeur : "
+  "une correction faite dans Excel met à jour la synthèse. Seules les analyses statistiques (tests, corrélations, "
+  "recommandations) sont des valeurs calculées par PEI, signalées comme telles.")
+table(["Feuille", "Contenu"],
+      ["Synthese", "Indicateurs clés, tableau par dimension de vie, graphiques des heures et du taux de réalisation"],
+      ["Quotidien, Hebdomadaire, Mensuel", "Indicateurs par jour, par semaine et par mois"],
+      ["Intentions, Activites, Reflexions", "Données brutes de la période"],
+      ["Calibration, Abandons", "Temps prévu contre temps réel, objectifs non réalisés et raisons"],
+      ["Objectifs, Competences, Evaluations", "Progression des objectifs et des compétences"],
+      ["Analyses", "Tendances, associations, jours atypiques, recommandations"],
+      ["Decisions, Experiences, Relations, Medias", "Journaux et métadonnées"],
+      widths=[0.32, 0.68])
 
 h1("13. Mémoire personnelle")
 p("Tout ce qui est écrit, transcrit ou validé est indexé. L'utilisateur peut chercher un mot ou poser une "

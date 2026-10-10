@@ -23,7 +23,7 @@ from backend import icons  # noqa: E402
 from backend import models as m  # noqa: E402
 from backend.db import init_engine, session_scope  # noqa: E402
 from backend.domain import DIMENSIONS, HORIZONS, INTENTION_STATUSES, dimension_label  # noqa: E402
-from backend.services import analytics, ask  # noqa: E402
+from backend.services import analytics, ask, export_excel  # noqa: E402
 from backend.services import skills as skill_service  # noqa: E402
 
 init_engine()
@@ -130,6 +130,8 @@ app_ui = ui.page_fillable(
                                  ui.input_date_range("custom_range", "Du ... au", start=date.today() - timedelta(days=60),
                                                      end=date.today(), language="fr", separator=" au ")),
             ui.input_action_button("refresh", ui.span(ic("refresh", 16), " Actualiser"), class_="btn-primary"),
+            ui.download_button("export_xlsx", ui.span(ic("download", 16), " Exporter en Excel"), class_="btn-warning"),
+            ui.p("Données et indicateurs de la période choisie.", class_="note"),
             ui.hr(),
             ui.output_ui("sidebar_info"),
             width=260, bg="#FFFFFF",
@@ -294,6 +296,12 @@ def server(input, output, session):
         with session_scope() as s:
             fr = analytics.load_frames(s)
         return fr
+
+    @render.download(filename=lambda: export_excel.filename(*period()))
+    def export_xlsx():
+        start, end = period()
+        with session_scope() as s:
+            yield export_excel.export_bytes(s, start, end)
 
     @render.ui
     def sidebar_info():

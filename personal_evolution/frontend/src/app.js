@@ -189,6 +189,44 @@ function bindVoice(id, moment, onText) {
   }
 }
 
+/* Export Excel : le fichier est téléchargé avec le code PIN éventuel. */
+function exportBlock(id) {
+  return `<div id="${id}">
+    <label>Période</label><select data-x="period">
+      <option value="30">30 derniers jours</option><option value="90" selected>3 derniers mois</option>
+      <option value="365">12 derniers mois</option><option value="all">Tout l'historique</option>
+      <option value="custom">Personnalisée</option></select>
+    <div class="row" data-x="custom" style="display:none"><div><label>Du</label><input type="date" data-x="start"></div>
+      <div><label>Au</label><input type="date" data-x="end" value="${todayISO()}"></div></div>
+    <div class="btns"><button class="btn" data-x="go">${icon("download")}Exporter en Excel</button></div>
+    <p class="small muted">Le classeur contient tes données et les indicateurs clés, calculés par des formules Excel.</p>
+  </div>`;
+}
+
+function bindExport(id) {
+  const box = $(`#${id}`); if (!box) return;
+  const sel = $('[data-x="period"]', box);
+  sel.onchange = () => ($('[data-x="custom"]', box).style.display = sel.value === "custom" ? "" : "none");
+  $('[data-x="go"]', box).onclick = (ev) => guard(async () => {
+    let qs = "";
+    if (sel.value === "custom") {
+      const a = $('[data-x="start"]', box).value, b = $('[data-x="end"]', box).value;
+      if (!a) throw new Error("Choisis une date de début");
+      qs = `?start=${a}&end=${b || todayISO()}`;
+    } else if (sel.value !== "all") qs = `?days=${sel.value}`;
+    const headers = S.pin ? { "X-PEI-PIN": S.pin } : {};
+    const res = await fetch(`/api/export/excel${qs}`, { headers });
+    if (!res.ok) throw new Error("Export impossible");
+    const cd = res.headers.get("Content-Disposition") || "";
+    const name = (cd.match(/filename="([^"]+)"/) || [])[1] || "PEI_export.xlsx";
+    const url = URL.createObjectURL(await res.blob());
+    const a = document.createElement("a");
+    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    toast("Fichier Excel téléchargé");
+  }, ev.currentTarget);
+}
+
 /* Initialisation */
 
 async function loadMeta() {
@@ -646,6 +684,7 @@ function pageMore() {
     ["chart", "Bilan", "Tendances et prédictions", "#/bilan"],
     ["calendar", "Historique", "Toutes les journées", "#/historique"],
     ["gauge", "Tableau de bord", "Analyse complète sur le PC", "#/dashboard"],
+    ["download", "Export Excel", "Données et indicateurs", "#/reglages"],
     ["settings", "Réglages", "Sauvegarde et réseau", "#/reglages"],
   ];
   app.innerHTML = `<h1>${icon("grid")}Plus</h1><div class="tiles">
@@ -914,7 +953,9 @@ async function pageReview() {
       <div class="btns"><button class="btn yellow" id="sim-go">${icon("play")}Simuler</button></div>
       <div id="sim-out"></div>
     </div>
+    <div class="card accent"><h2>${icon("download")}Exporter mes données</h2>${exportBlock("exp-bilan")}</div>
     <a class="btn block ghost" href="#/dashboard">${icon("gauge")}Ouvrir le tableau de bord complet</a>`;
+  bindExport("exp-bilan");
   $("#sim-go").onclick = (ev) => guard(async () => {
     const cat = $("#sim-cat").value.trim() || null;
     const known = S.categories.find((c) => c.category === cat);
@@ -984,6 +1025,7 @@ async function pageSettings() {
     <div class="card"><h2>${icon("archive")}Données</h2><div class="kpis">
       ${Object.entries(info.counts).map(([k, v]) => `<div class="kpi"><div class="v">${v}</div><div class="l">${esc(k)}</div></div>`).join("")}</div>
       <p class="small muted">Base : ${esc(info.database)} (${info.database_mb} Mo)</p></div>
+    <div class="card accent"><h2>${icon("download")}Export Excel</h2>${exportBlock("exp-set")}</div>
     <div class="card accent"><h2>${icon("shield")}Sauvegarde</h2>
       <div class="btns"><button class="btn" id="bk-go">${icon("download")}Créer une sauvegarde</button></div>
       <div class="list" style="margin-top:10px">${backups.slice(0, 8).map((b) => `<a class="item" href="/api/system/backups/${encodeURIComponent(b.name)}" style="color:inherit;text-decoration:none">${icon("archive")}<div class="grow"><div class="title small">${esc(b.name)}</div><div class="meta"><span>${b.size_mb} Mo</span></div></div>${icon("download")}</a>`).join("")}</div>
@@ -991,6 +1033,7 @@ async function pageSettings() {
     <div class="card"><h2>${icon("lock")}Code PIN</h2>
       <p class="small muted">${info.pin_enabled ? "Un code PIN protège l'accès." : "Aucun code PIN. Pour en définir un, lance le serveur avec la variable PEI_PIN."}</p>
       ${info.pin_enabled ? `<button class="btn ghost" id="pin-out">${icon("lock")}Oublier le code sur ce téléphone</button>` : ""}</div>`;
+  bindExport("exp-set");
   $("#bk-go").onclick = (ev) => guard(async () => { const r = await api("/system/backup", { method: "POST" }); toast(`Sauvegarde ${r.file} créée`); pageSettings(); }, ev.currentTarget);
   const out = $("#pin-out"); if (out) out.onclick = () => { safeSet("pei_pin", ""); S.pin = ""; renderLock(); };
 }

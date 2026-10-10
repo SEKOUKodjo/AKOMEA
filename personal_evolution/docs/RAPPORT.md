@@ -2,7 +2,7 @@
 
 ## Rapport explicatif
 
-*Version 1.0, 06/10/2026*
+*Version 1.0, 10/10/2026*
 
 ## 1. Résumé
 
@@ -260,6 +260,20 @@ Le tableau de bord, exclusivement analytique, propose huit onglets avec un filtr
 ![Onglet Prédiction : simulation d'un rythme de travail](captures/08_dashboard_prediction.png)
 
 *Onglet Prédiction : simulation d'un rythme de travail*
+
+### 12.1 Export Excel
+
+Les données et les indicateurs s'exportent dans un classeur Excel, depuis le téléphone (Plus, puis Export Excel), depuis le tableau de bord (bouton Exporter en Excel) ou en ligne de commande (python run.py export --days 90). La période est au choix. Les indicateurs sont des formules Excel qui pointent vers les données brutes du classeur : une correction faite dans Excel met à jour la synthèse. Seules les analyses statistiques (tests, corrélations, recommandations) sont des valeurs calculées par PEI, signalées comme telles.
+
+| Feuille | Contenu |
+|---|---|
+| Synthese | Indicateurs clés, tableau par dimension de vie, graphiques des heures et du taux de réalisation |
+| Quotidien, Hebdomadaire, Mensuel | Indicateurs par jour, par semaine et par mois |
+| Intentions, Activites, Reflexions | Données brutes de la période |
+| Calibration, Abandons | Temps prévu contre temps réel, objectifs non réalisés et raisons |
+| Objectifs, Competences, Evaluations | Progression des objectifs et des compétences |
+| Analyses | Tendances, associations, jours atypiques, recommandations |
+| Decisions, Experiences, Relations, Medias | Journaux et métadonnées |
 
 ## 13. Mémoire personnelle
 

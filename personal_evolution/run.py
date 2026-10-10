@@ -5,6 +5,7 @@
     python run.py all                   les deux à la fois
     python run.py demo --db data/demo.db  base de démonstration
     python run.py backup                sauvegarde locale (base et médias)
+    python run.py export --days 90      export Excel des données et des indicateurs
     python run.py reindex               reconstruit l'index de la mémoire
 """
 from __future__ import annotations
@@ -96,6 +97,23 @@ def backup(args) -> None:
     print(f"Sauvegarde créée : {path}")
 
 
+def export(args) -> None:
+    _apply_db(args)
+    from datetime import date, timedelta
+
+    from backend.db import init_engine, session_scope
+    from backend.services import export_excel
+
+    init_engine()
+    end = date.fromisoformat(args.end) if args.end else (date.today() if args.days or args.start else None)
+    start = date.fromisoformat(args.start) if args.start else (end - timedelta(days=args.days - 1) if args.days else None)
+    with session_scope() as session:
+        content = export_excel.export_bytes(session, start, end)
+    out = Path(args.out or export_excel.filename(start, end)).resolve()
+    out.write_bytes(content)
+    print(f"Export Excel créé : {out}")
+
+
 def reindex(args) -> None:
     _apply_db(args)
     from backend.db import init_engine, session_scope
@@ -146,6 +164,14 @@ def main() -> None:
     b.add_argument("--to", help="dossier cible, par exemple un disque externe")
     b.add_argument("--no-media", action="store_true")
     b.set_defaults(func=backup)
+
+    x = sub.add_parser("export", help="export Excel des données et des indicateurs")
+    x.add_argument("--db")
+    x.add_argument("--out", help="fichier .xlsx de sortie")
+    x.add_argument("--days", type=int, help="les N derniers jours")
+    x.add_argument("--start", help="date de début AAAA-MM-JJ")
+    x.add_argument("--end", help="date de fin AAAA-MM-JJ")
+    x.set_defaults(func=export)
 
     r = sub.add_parser("reindex")
     r.add_argument("--db")
