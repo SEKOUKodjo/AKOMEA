@@ -28,7 +28,8 @@ class Settings:
     # Une journée passée ne peut être renseignée que jusqu'à N jours après (4 par défaut).
     backfill_days: int = field(default_factory=lambda: int(os.environ.get("PEI_DELAI_SAISIE_JOURS", "4")))
     whisper_model: str = field(default_factory=lambda: os.environ.get("PEI_WHISPER_MODEL", "small"))
-    whisper_language: str = field(default_factory=lambda: os.environ.get("PEI_WHISPER_LANG", "fr"))
+    # "auto" : Whisper détecte la langue parlée (français ou anglais) ; sinon "fr" ou "en".
+    whisper_language: str = field(default_factory=lambda: os.environ.get("PEI_WHISPER_LANG", "auto"))
     dashboard_port: int = field(default_factory=lambda: int(os.environ.get("PEI_DASHBOARD_PORT", "8001")))
     max_upload_mb: int = field(default_factory=lambda: int(os.environ.get("PEI_MAX_UPLOAD_MB", "500")))
 

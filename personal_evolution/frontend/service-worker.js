@@ -1,7 +1,7 @@
 // Service worker PEI : met en cache l'interface pour un démarrage rapide.
 // Les données (API) ne sont jamais mises en cache : elles restent sur le PC.
-const CACHE = "pei-shell-v1";
-const SHELL = ["/", "/src/style.css", "/src/app.js", "/manifest.json", "/icons/logo.svg", "/icons/icon-192.png"];
+const CACHE = "pei-shell-v2";
+const SHELL = ["/", "/src/style.css", "/src/i18n_en.js", "/src/i18n.js", "/src/app.js", "/manifest.json", "/icons/logo.svg", "/icons/icon-192.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

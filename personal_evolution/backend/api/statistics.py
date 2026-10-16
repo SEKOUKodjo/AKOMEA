@@ -16,6 +16,7 @@ from .. import models as m
 from ..config import settings
 from ..domain import DIMENSIONS, HORIZONS, INTENTION_STATUSES, REFLECTION_KINDS
 from ..schemas import PredictIn, ScenarioIn
+from ..i18n import get_lang, tr
 from ..services import analytics, ask, backup, export_excel, memory
 from .deps import get_session
 
@@ -42,7 +43,7 @@ def stats_daily(days: int | None = 90, start: date | None = None, end: date | No
     daily = analytics.daily_series(analytics.load_frames(session, start, end), start, end)
     df = daily.reset_index()
     df["date"] = df["date"].dt.strftime("%Y-%m-%d")
-    return {"labels": analytics.METRIC_LABELS, "rows": df.astype(object).where(df.notna(), None).to_dict("records")}
+    return {"labels": analytics.metric_labels(), "rows": df.astype(object).where(df.notna(), None).to_dict("records")}
 
 
 @router.get("/statistics/weekly", tags=["statistiques"])
@@ -125,7 +126,7 @@ def predict_completion(body: PredictIn, session: Session = Depends(get_session))
 @router.post("/predict/duration", tags=["prediction"])
 def predict_duration(body: PredictIn, session: Session = Depends(get_session)):
     if not body.estimated_minutes:
-        raise HTTPException(400, "estimated_minutes est requis")
+        raise HTTPException(400, tr("estimated_minutes est requis"))
     fr = analytics.load_frames(session)
     return predict.predict_duration(fr.intentions, body.category, body.dimension, body.estimated_minutes)
 
@@ -196,11 +197,12 @@ def categories(session: Session = Depends(get_session)):
 @router.get("/meta", tags=["referentiel"])
 def meta():
     return {
-        "dimensions": [{"key": k, **v} for k, v in DIMENSIONS.items()],
-        "horizons": [{"key": k, "label": v} for k, v in HORIZONS.items()],
-        "statuses": [{"key": k, "label": v} for k, v in INTENTION_STATUSES.items()],
-        "reflection_kinds": [{"key": k, "label": v} for k, v in REFLECTION_KINDS.items()],
-        "metrics": [{"key": k, "label": v} for k, v in analytics.METRIC_LABELS.items()],
+        "lang": get_lang(),
+        "dimensions": [{"key": k, **v, "label": tr(v["label"])} for k, v in DIMENSIONS.items()],
+        "horizons": [{"key": k, "label": tr(v)} for k, v in HORIZONS.items()],
+        "statuses": [{"key": k, "label": tr(v)} for k, v in INTENTION_STATUSES.items()],
+        "reflection_kinds": [{"key": k, "label": tr(v)} for k, v in REFLECTION_KINDS.items()],
+        "metrics": [{"key": k, "label": v} for k, v in analytics.metric_labels().items()],
     }
 
 
@@ -252,5 +254,5 @@ def system_backups():
 def download_backup(name: str):
     path = settings.backup_dir / name
     if "/" in name or ".." in name or not path.exists():
-        raise HTTPException(404, "Sauvegarde introuvable")
+        raise HTTPException(404, tr("Sauvegarde introuvable"))
     return FileResponse(path, filename=name, media_type="application/zip")

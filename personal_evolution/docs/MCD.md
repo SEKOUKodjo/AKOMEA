@@ -40,7 +40,7 @@ Le schéma est fourni en vectoriel (docs/mcd.svg et page précédente du PDF) : 
 | EXPERIENCE | experiments | Expérience personnelle : hypothèse testée sur une période. | 10 |
 | PERSONNE | people | Personne de l'entourage (famille, ami, mentor...). | 6 |
 | ECHANGE | interactions | Échange avec une personne : appel, visite, rencontre, message. | 5 |
-| UTILISATEUR | users | Compte local protégeant l'accès aux données (mot de passe haché). | 8 |
+| UTILISATEUR | users | Compte local protégeant l'accès aux données (mot de passe haché). | 9 |
 | SESSION_CONNEXION | auth_sessions | Connexion ouverte sur un appareil (téléphone, PC), avec date d'expiration. | 6 |
 
 Trois groupes se dégagent :
@@ -116,7 +116,7 @@ Règles appliquées : chaque entité devient une table, son identifiant devient 
 * **experiments** (__id__, title, hypothesis, intervention, metric, start_date, end_date, status, conclusion, created_at)
 * **people** (__id__, name, relation, notes, contact_every_days, created_at)
 * **interactions** (__id__, #person_id, date, kind, note, created_at)
-* **users** (__id__, username, display_name, password_hash, failed_attempts, locked_until, last_login_at, created_at)
+* **users** (__id__, username, display_name, language, password_hash, failed_attempts, locked_until, last_login_at, created_at)
 * **auth_sessions** (__id__, #user_id, token_hash, user_agent, created_at, last_seen_at, expires_at)
 
 Notation : identifiant souligné, clé étrangère précédée de #.
@@ -434,6 +434,7 @@ Compte local protégeant l'accès aux données (mot de passe haché).
 | id | Entier | Clé primaire | Identifiant |
 | username | Texte (60) | Unique, Obligatoire | Identifiant de connexion, unique |
 | display_name | Texte (120) | Facultatif | Prénom affiché |
+| language | Texte (5) | Obligatoire, Défaut : fr | Langue de l'interface (fr ou en) |
 | password_hash | Texte (200) | Obligatoire | Empreinte PBKDF2 du mot de passe (jamais le mot de passe lui même) |
 | failed_attempts | Entier | Obligatoire, Défaut : 0 | Essais ratés consécutifs |
 | locked_until | Date et heure | Facultatif | Connexion bloquée jusqu'à cette date |

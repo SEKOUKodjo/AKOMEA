@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from .. import models as m
 from ..domain import REFLECTION_KINDS, dimension_label
+from ..i18n import tr
 
 FTS_TABLE = "memory_index"
 
@@ -155,6 +156,10 @@ STOPWORDS = {
     "ces", "sur", "pour", "dans", "par", "avec", "il", "elle", "on", "nous", "vous", "plus", "moins", "pas", "ne",
     "se", "sa", "son", "ses", "mois", "dernier", "derniere", "annee", "semaine", "jour", "jours", "fait", "eu",
     "suis", "etait", "ete", "comment", "pourquoi", "reviennent", "regulierement", "souvent",
+    # anglais
+    "the", "an", "and", "or", "of", "to", "in", "on", "at", "for", "with", "my", "me", "is", "was", "were", "did",
+    "do", "does", "what", "which", "who", "how", "why", "when", "have", "has", "had", "it", "that", "this", "last",
+    "month", "year", "week", "day", "days", "most", "more", "less", "not", "keep", "coming", "back",
 }
 
 
@@ -184,9 +189,9 @@ def search(session: Session, q: str, *, kinds: list[str] | None = None, start: d
     rows = session.connection().execute(text(sql), params).fetchall()
     return [
         {
-            "kind": r.kind, "kind_label": KIND_LABELS.get(r.kind, r.kind), "ref_id": r.ref_id, "date": r.day,
+            "kind": r.kind, "kind_label": tr(KIND_LABELS.get(r.kind, r.kind)), "ref_id": r.ref_id, "date": r.day,
             "dimension": r.dimension, "dimension_label": dimension_label(r.dimension) if r.dimension else None,
-            "title": r.title, "snippet": r.snip, "score": round(-r.score, 3),
+            "title": tr(r.title), "snippet": r.snip, "score": round(-r.score, 3),
         }
         for r in rows
     ]

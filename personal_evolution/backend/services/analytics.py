@@ -17,6 +17,9 @@ from sqlalchemy.orm import Session
 
 from .. import models as m
 from ..domain import DIMENSIONS, dimension_label
+from ai.nlp.extract import category_display
+
+from ..i18n import get_lang, num, tr, weekday as weekday_name
 
 CAUSALITY_NOTE = "Association statistique observée dans tes données, ce qui ne prouve pas une relation de cause à effet."
 
@@ -43,6 +46,32 @@ METRIC_LABELS = {
 }
 for _k, _v in DIMENSIONS.items():
     METRIC_LABELS[f"min_{_k}"] = f"Minutes {_v['label']}"
+
+
+def _in_sentence(day_name: str) -> str:
+    """Nom de jour dans une phrase : minuscule en français, majuscule en anglais."""
+    return day_name if get_lang() == "en" else day_name.lower()
+
+
+def metric_label(key: str) -> str:
+    """Libellé d'un indicateur dans la langue courante."""
+    if key.startswith("min_") and key[4:] in DIMENSIONS:
+        return tr("Minutes {dim}", dim=dimension_label(key[4:]))
+    if key.startswith("cat:"):
+        return tr("Le temps consacré à {cat}", cat=key[4:])
+    return tr(METRIC_LABELS.get(key, key))
+
+
+def metric_labels() -> dict[str, str]:
+    return {k: metric_label(k) for k in METRIC_LABELS}
+
+
+def causality_note() -> str:
+    return tr(CAUSALITY_NOTE)
+
+
+BIAS_LABELS = {"sous estimation": "sous estimation", "surestimation": "surestimation", "juste": "juste",
+               "insuffisant": "insuffisant"}
 
 DAY_COLUMNS = ["sleep_hours", "sleep_quality", "energy", "motivation", "mood", "stress", "fatigue",
                "screen_minutes", "sedentary_minutes", "water_liters", "steps"]
@@ -72,10 +101,11 @@ def load_frames(session: Session, start: date | None = None, end: date | None = 
     def _in_range(model):
         return session.query(model).filter(model.day_id.in_(list(ids))).all() if ids else []
 
+    lang = get_lang()
     ints = _in_range(m.Intention)
     int_df = pd.DataFrame([{
         "id": i.id, "day_id": i.day_id, "date": pd.Timestamp(ids[i.day_id]), "dimension": i.dimension,
-        "category": i.category or "Autre", "description": i.description, "priority": i.priority,
+        "category": category_display(i.category, lang) or tr("Autre"), "description": i.description, "priority": i.priority,
         "estimated_minutes": i.estimated_minutes, "actual_minutes": i.actual_minutes, "status": i.status,
         "goal_id": i.goal_id, "reason": i.reason, "result": i.result,
     } for i in ints], columns=["id", "day_id", "date", "dimension", "category", "description", "priority",
@@ -93,7 +123,7 @@ def load_frames(session: Session, start: date | None = None, end: date | None = 
     acts = _in_range(m.Activity)
     act_df = pd.DataFrame([{
         "id": a.id, "day_id": a.day_id, "date": pd.Timestamp(ids[a.day_id]), "dimension": a.dimension,
-        "category": a.category or "Autre", "description": a.description, "minutes": a.duration_minutes or 0,
+        "category": category_display(a.category, lang) or tr("Autre"), "description": a.description, "minutes": a.duration_minutes or 0,
         "intention_id": a.intention_id, "skill_id": a.skill_id, "result": a.result,
     } for a in acts], columns=["id", "day_id", "date", "dimension", "category", "description", "minutes",
                                "intention_id", "skill_id", "result"])
@@ -187,7 +217,7 @@ def summary(session: Session, start: date | None = None, end: date | None = None
         ints = it[it["dimension"] == dim] if not it.empty else it
         cl = ints[ints["closed"]] if not ints.empty else ints
         by_dim.append({
-            "dimension": dim, "label": meta["label"], "icon": meta["icon"], "minutes": mins,
+            "dimension": dim, "label": tr(meta["label"]), "icon": meta["icon"], "minutes": mins,
             "hours": round(mins / 60, 1), "n_intentions": int(len(ints)),
             "completion_rate": _round(cl["score"].mean()) if len(cl) else None,
             "n_activities": int((ac["dimension"] == dim).sum()) if not ac.empty else 0,
@@ -262,18 +292,20 @@ def calibration(fr: Frames) -> dict:
         n = int(len(g))
         if n >= 3 and ratio > 1.1:
             bias = "sous estimation"
-            msg = f"Tu prévois généralement moins de temps que nécessaire (environ {round((ratio - 1) * 100)} % de plus en réalité)."
+            msg = tr("Tu prévois généralement moins de temps que nécessaire (environ {pct} % de plus en réalité).",
+                     pct=round((ratio - 1) * 100))
         elif n >= 3 and ratio < 0.9:
             bias = "surestimation"
-            msg = f"Tu prévois généralement plus de temps que nécessaire (environ {round((1 - ratio) * 100)} % de moins en réalité)."
+            msg = tr("Tu prévois généralement plus de temps que nécessaire (environ {pct} % de moins en réalité).",
+                     pct=round((1 - ratio) * 100))
         else:
             bias = "juste" if n >= 3 else "insuffisant"
-            msg = "Tes estimations sont plutôt justes." if n >= 3 else "Pas encore assez d'observations."
+            msg = tr("Tes estimations sont plutôt justes.") if n >= 3 else tr("Pas encore assez d'observations.")
         lo, hi = (np.percentile(g["ratio"], [25, 75]) if n >= 4 else (np.nan, np.nan))
         return {"n": n, "mean_estimated": _round(g["estimated_minutes"].mean(), 1),
                 "mean_actual": _round(g["actual_minutes"].mean(), 1), "mean_error": _round(g["error"].mean(), 1),
                 "median_ratio": _round(ratio), "ratio_q1": _round(lo), "ratio_q3": _round(hi),
-                "mae": _round(g["error"].abs().mean(), 1), "bias": bias, "message": msg}
+                "mae": _round(g["error"].abs().mean(), 1), "bias": bias, "bias_label": tr(bias), "message": msg}
 
     cats = []
     for (cat, dim), g in d.groupby(["category", "dimension"], dropna=False):
@@ -351,16 +383,22 @@ def trends(daily: pd.DataFrame, window_days: int = 21, fr: Frames | None = None)
             slope, pslope = lr.slope, lr.pvalue
         if abs(rel) < 0.15 or p > 0.1:
             continue
-        label = f"Le temps consacré à {col[4:]}" if col.startswith("cat:") else METRIC_LABELS.get(col, col)
+        label = metric_label(col)
         direction = "hausse" if mb > ma else "baisse"
         unit = " %" if col == "completion_rate" else ""
         fa, fb = (ma * 100, mb * 100) if col == "completion_rate" else (ma, mb)
         out.append({
-            "metric": col, "label": label, "direction": direction, "before": _round(fa, 1), "recent": _round(fb, 1),
+            "metric": col, "label": label, "direction": direction, "direction_label": tr(direction),
+            "before": _round(fa, 1), "recent": _round(fb, 1),
             "relative_change": _round(rel, 3), "p_value": _round(p, 4), "slope_per_day": _round(slope, 3),
             "slope_p_value": _round(pslope, 4), "window_days": window_days,
-            "message": (f"Au cours des {weeks} dernières semaines, {label[0].lower() + label[1:]} est en {direction} "
-                        f"(moyenne {_round(fb, 1):g}{unit} contre {_round(fa, 1):g}{unit} sur les {weeks} semaines précédentes)."),
+            "message": tr(
+                "Au cours des {weeks} dernières semaines, {label} est en hausse (moyenne {recent}{unit} contre "
+                "{before}{unit} sur les {weeks} semaines précédentes)." if direction == "hausse" else
+                "Au cours des {weeks} dernières semaines, {label} est en baisse (moyenne {recent}{unit} contre "
+                "{before}{unit} sur les {weeks} semaines précédentes).",
+                weeks=weeks, label=label[0].lower() + label[1:], recent=num(_round(fb, 1)), before=num(_round(fa, 1)),
+                unit=unit),
         })
     out.sort(key=lambda t: t["p_value"])
     return out
@@ -382,9 +420,9 @@ def anomalies(daily: pd.DataFrame, window: int = 28, threshold: float = 3.0) -> 
         floor = max(float(s.std(skipna=True) or 0) * 0.75, 1e-6)
         z = (s - med) / scale.fillna(floor).clip(lower=floor)
         for ts, val in z[z.abs() >= threshold].items():
-            out.append({"date": str(ts.date()), "metric": col, "label": METRIC_LABELS.get(col, col),
+            out.append({"date": str(ts.date()), "metric": col, "label": metric_label(col),
                         "value": _round(s[ts], 2), "expected": _round(med[ts], 2), "z": _round(val, 2),
-                        "direction": "haut" if val > 0 else "bas"})
+                        "direction": "haut" if val > 0 else "bas", "direction_label": tr("haut" if val > 0 else "bas")})
     out.sort(key=lambda a: a["date"], reverse=True)
     return out
 
@@ -406,7 +444,7 @@ def _bh(pvals: list[float]) -> list[float]:
 def correlations(daily: pd.DataFrame, min_n: int = 14) -> dict:
     """Associations (Spearman) entre comportements déclarés et résultats de la journée."""
     if daily.empty:
-        return {"pairs": [], "note": CAUSALITY_NOTE}
+        return {"pairs": [], "note": causality_note()}
     drivers = ["sleep_hours", "sleep_quality", "energy", "motivation", "stress", "screen_minutes",
                "n_intentions", "steps", "min_spirituel", "min_physique"]
     outcomes = ["completion_rate", "actual_minutes", "mood", "min_etudes", "min_professionnel"]
@@ -424,20 +462,20 @@ def correlations(daily: pd.DataFrame, min_n: int = 14) -> dict:
             rho, p = stats.spearmanr(sub[x], sub[y])
             if np.isnan(rho):
                 continue
-            rows.append({"x": x, "y": y, "x_label": METRIC_LABELS.get(x, x), "y_label": METRIC_LABELS.get(y, y),
+            rows.append({"x": x, "y": y, "x_label": metric_label(x), "y_label": metric_label(y),
                          "rho": float(rho), "p_value": float(p), "n": int(len(sub))})
     adj = _bh([r["p_value"] for r in rows])
     for r, q in zip(rows, adj):
         r["q_value"] = q
-        r["strength"] = ("forte" if abs(r["rho"]) >= 0.5 else "modérée" if abs(r["rho"]) >= 0.3 else "faible")
+        r["strength"] = tr("forte" if abs(r["rho"]) >= 0.5 else "modérée" if abs(r["rho"]) >= 0.3 else "faible")
         r["significant"] = q < 0.05
         r["rho"], r["p_value"], r["q_value"] = round(r["rho"], 3), round(r["p_value"], 4), round(q, 4)
     rows.sort(key=lambda r: -abs(r["rho"]))
     matrix_cols = [c for c in drivers + outcomes if c in d and d[c].notna().sum() >= min_n]
     matrix_cols = list(dict.fromkeys(matrix_cols))
     matrix = d[matrix_cols].corr(method="spearman").round(3) if matrix_cols else pd.DataFrame()
-    return {"pairs": rows, "note": CAUSALITY_NOTE,
-            "matrix": {"columns": [METRIC_LABELS.get(c, c) for c in matrix.columns],
+    return {"pairs": rows, "note": causality_note(),
+            "matrix": {"columns": [metric_label(c) for c in matrix.columns],
                        "keys": list(matrix.columns), "values": matrix.fillna(0).values.tolist()}}
 
 
@@ -488,9 +526,10 @@ def experiment_analysis(session: Session, exp: m.Experiment) -> dict:
     fr = load_frames(session, base_start, end)
     daily = daily_series(fr, base_start, end)
     metric = exp.metric
-    label = METRIC_LABELS.get(metric, metric)
+    label = metric_label(metric)
     if daily.empty or metric not in daily:
-        return {"status": "insuffisant", "message": "Pas encore de données pour cette métrique.", "metric": metric}
+        return {"status": "insuffisant", "message": tr("Pas encore de données pour cette métrique."), "metric": metric,
+                "label": label}
     daily = daily[daily["logged"]]
     base = daily.loc[: pd.Timestamp(exp.start_date) - pd.Timedelta(days=1), metric].dropna()
     test = daily.loc[pd.Timestamp(exp.start_date):, metric].dropna()
@@ -499,22 +538,25 @@ def experiment_analysis(session: Session, exp: m.Experiment) -> dict:
            "experiment_period": [str(exp.start_date), str(end)],
            "baseline_mean": _round(base.mean()), "experiment_mean": _round(test.mean()),
            "baseline_median": _round(base.median()), "experiment_median": _round(test.median()),
-           "note": CAUSALITY_NOTE + " D'autres facteurs ont pu changer pendant la même période."}
+           "note": causality_note() + " " + tr("D'autres facteurs ont pu changer pendant la même période.")}
     if len(base) < 5 or len(test) < 5:
         res.update(status="insuffisant",
-                   message="Au moins 5 jours renseignés sont nécessaires dans chaque période pour conclure.")
+                   message=tr("Au moins 5 jours renseignés sont nécessaires dans chaque période pour conclure."))
         return res
     u = stats.mannwhitneyu(test, base, alternative="two-sided")
     cliff = (2 * u.statistic) / (len(test) * len(base)) - 1  # delta de Cliff
     res.update(p_value=_round(float(u.pvalue), 4), effect_size=_round(float(cliff), 3))
-    magnitude = "négligeable" if abs(cliff) < 0.147 else "faible" if abs(cliff) < 0.33 else "moyen" if abs(cliff) < 0.474 else "fort"
-    direction = "plus élevé" if test.mean() > base.mean() else "plus faible"
+    magnitude = tr("négligeable" if abs(cliff) < 0.147 else "faible" if abs(cliff) < 0.33
+                   else "moyen" if abs(cliff) < 0.474 else "fort")
     if u.pvalue < 0.05:
-        res.update(status="difference",
-                   message=f"Pendant l'expérience, {label.lower()} est {direction} qu'avant (effet {magnitude}, p = {u.pvalue:.3f}).")
+        template = ("Pendant l'expérience, {label} est plus élevé qu'avant (effet {magnitude}, p = {p})."
+                    if test.mean() > base.mean() else
+                    "Pendant l'expérience, {label} est plus faible qu'avant (effet {magnitude}, p = {p}).")
+        res.update(status="difference", message=tr(template, label=label.lower(), magnitude=magnitude, p=f"{u.pvalue:.3f}"))
     else:
         res.update(status="pas_de_difference",
-                   message=f"Pas de différence nette pour {label.lower()} entre les deux périodes (p = {u.pvalue:.3f}).")
+                   message=tr("Pas de différence nette pour {label} entre les deux périodes (p = {p}).",
+                              label=label.lower(), p=f"{u.pvalue:.3f}"))
     return res
 
 
@@ -530,19 +572,18 @@ def intention_count_effect(fr: Frames, daily: pd.DataFrame) -> dict | None:
         return None
     rho, p = stats.spearmanr(d["n_intentions"], d["completion_rate"])
     best = g["mean"].idxmax()
-    return {"buckets": [{"bucket": str(k), "completion_rate": _round(v["mean"]), "n_days": int(v["count"])}
+    return {"buckets": [{"bucket": tr(str(k)), "completion_rate": _round(v["mean"]), "n_days": int(v["count"])}
                         for k, v in g.iterrows()],
-            "best": str(best), "rho": _round(float(rho), 3), "p_value": _round(float(p), 4)}
+            "best": tr(str(best)), "rho": _round(float(rho), 3), "p_value": _round(float(p), 4)}
 
 
 def weekday_profile(daily: pd.DataFrame) -> list[dict]:
-    names = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
     d = daily[daily["logged"]]
     if d.empty:
         return []
     g = d.groupby("weekday").agg(completion_rate=("completion_rate", "mean"), actual_minutes=("actual_minutes", "mean"),
                                  n=("logged", "count"))
-    return [{"weekday": names[int(k)], "completion_rate": _round(r.completion_rate),
+    return [{"weekday": weekday_name(int(k)), "completion_rate": _round(r.completion_rate),
              "actual_minutes": _round(r.actual_minutes, 0), "n_days": int(r.n)} for k, r in g.iterrows()]
 
 
@@ -559,10 +600,11 @@ def insights(session: Session, start: date | None = None, end: date | None = Non
         best = next(b for b in eff["buckets"] if b["bucket"] == eff["best"])
         out.append({
             "type": "planification", "icon": "target",
-            "title": "Moins d'objectifs, plus de réalisations",
-            "message": (f"Tes données montrent que tu réalises plus souvent tes objectifs lorsque tu en fixes "
-                        f"{best['bucket']} le matin (taux de {round(best['completion_rate'] * 100)} % sur {best['n_days']} jours)."),
-            "evidence": eff, "caveat": CAUSALITY_NOTE,
+            "title": tr("Moins d'objectifs, plus de réalisations"),
+            "message": tr("Tes données montrent que tu réalises plus souvent tes objectifs lorsque tu en fixes {bucket} "
+                          "le matin (taux de {rate} % sur {n} jours).",
+                          bucket=best["bucket"], rate=round(best["completion_rate"] * 100), n=best["n_days"]),
+            "evidence": eff, "caveat": causality_note(),
         })
 
     cal = calibration(fr)
@@ -570,40 +612,47 @@ def insights(session: Session, start: date | None = None, end: date | None = Non
     biased.sort(key=lambda c: -abs((c["median_ratio"] or 1) - 1))
     for c in biased[:2]:
         pct = round(abs((c["median_ratio"] or 1) - 1) * 100)
-        more = "plus" if c["bias"] == "sous estimation" else "moins"
+        template = ("Les activités « {cat} » prennent en moyenne {pct} % de plus de temps que ton estimation initiale "
+                    "({est} min prévues, {act} min réelles, {n} observations)."
+                    if c["bias"] == "sous estimation" else
+                    "Les activités « {cat} » prennent en moyenne {pct} % de moins de temps que ton estimation initiale "
+                    "({est} min prévues, {act} min réelles, {n} observations).")
         out.append({
             "type": "calibration", "icon": "clock",
-            "title": f"Estimation du temps : {c['category']}",
-            "message": (f"Les activités « {c['category']} » prennent en moyenne {pct} % de {more} de temps que ton "
-                        f"estimation initiale ({c['mean_estimated']:g} min prévues, {c['mean_actual']:g} min réelles, {c['n']} observations)."),
-            "evidence": c, "caveat": "Estimation fondée sur l'historique, à ajuster si la nature des tâches change.",
+            "title": tr("Estimation du temps : {cat}", cat=c["category"]),
+            "message": tr(template, cat=c["category"], pct=pct, est=num(c["mean_estimated"]), act=num(c["mean_actual"]),
+                          n=c["n"]),
+            "evidence": c, "caveat": tr("Estimation fondée sur l'historique, à ajuster si la nature des tâches change."),
         })
 
     for t in trends(daily, fr=fr)[:4]:
         out.append({"type": "tendance", "icon": "trend_up" if t["direction"] == "hausse" else "trend_down",
-                    "title": f"Tendance : {t['label']}", "message": t["message"], "evidence": t,
-                    "caveat": "Comparaison descriptive entre deux périodes consécutives."})
+                    "title": tr("Tendance : {label}", label=t["label"]), "message": t["message"], "evidence": t,
+                    "caveat": tr("Comparaison descriptive entre deux périodes consécutives.")})
 
     corr = correlations(daily)
     for pair in [p for p in corr["pairs"] if p["significant"] and abs(p["rho"]) >= 0.3][:3]:
-        sens = "plus" if pair["rho"] > 0 else "moins"
+        template = ("Les jours où {x} est plus élevé, {y} tend à être plus élevé (corrélation {strength}, rho = {rho}, {n} jours)."
+                    if pair["rho"] > 0 else
+                    "Les jours où {x} est plus élevé, {y} tend à être moins élevé (corrélation {strength}, rho = {rho}, {n} jours).")
         out.append({
             "type": "association", "icon": "link",
-            "title": f"{pair['x_label']} et {pair['y_label'].lower()}",
-            "message": (f"Les jours où {pair['x_label'].lower()} est plus élevé, {pair['y_label'].lower()} tend à être "
-                        f"{sens} élevé (corrélation {pair['strength']}, rho = {pair['rho']}, {pair['n']} jours)."),
-            "evidence": pair, "caveat": CAUSALITY_NOTE,
+            "title": tr("{x} et {y}", x=pair["x_label"], y=pair["y_label"].lower()),
+            "message": tr(template, x=pair["x_label"].lower(), y=pair["y_label"].lower(), strength=pair["strength"],
+                          rho=num(pair["rho"], 3), n=pair["n"]),
+            "evidence": pair, "caveat": causality_note(),
         })
 
     ab = abandons(fr)
     for c in [c for c in ab["categories"] if c["n"] >= 4 and (c["abandon_rate"] or 0) >= 0.5][:2]:
-        reason = f" Raison la plus citée : « {ab['reasons'][0]['reason']} »." if ab["reasons"] else ""
+        reason = (" " + tr("Raison la plus citée : « {reason} ».", reason=ab["reasons"][0]["reason"])) if ab["reasons"] else ""
         out.append({
             "type": "abandon", "icon": "alert",
-            "title": f"Objectif souvent abandonné : {c['category']}",
-            "message": (f"« {c['category']} » n'est pas réalisé dans {round(c['abandon_rate'] * 100)} % des cas "
-                        f"({c['abandoned']} sur {c['n']}).{reason} Un format plus court ou un autre moment de la journée peut être testé."),
-            "evidence": c, "caveat": "Suggestion à valider par une expérience personnelle.",
+            "title": tr("Objectif souvent abandonné : {cat}", cat=c["category"]),
+            "message": tr("« {cat} » n'est pas réalisé dans {pct} % des cas ({k} sur {n}).", cat=c["category"],
+                          pct=round(c["abandon_rate"] * 100), k=c["abandoned"], n=c["n"]) + reason + " "
+                       + tr("Un format plus court ou un autre moment de la journée peut être testé."),
+            "evidence": c, "caveat": tr("Suggestion à valider par une expérience personnelle."),
         })
 
     wd = [w for w in weekday_profile(daily) if w["n_days"] >= 3 and w["completion_rate"] is not None]
@@ -613,37 +662,41 @@ def insights(session: Session, start: date | None = None, end: date | None = Non
         if best["completion_rate"] - worst["completion_rate"] >= 0.2:
             out.append({
                 "type": "rythme", "icon": "calendar",
-                "title": "Rythme de la semaine",
-                "message": (f"Ton meilleur jour est le {best['weekday'].lower()} ({round(best['completion_rate'] * 100)} % de réalisation) "
-                            f"et le plus difficile le {worst['weekday'].lower()} ({round(worst['completion_rate'] * 100)} %)."),
-                "evidence": {"weekdays": wd}, "caveat": "Description de tes habitudes passées.",
+                "title": tr("Rythme de la semaine"),
+                "message": tr("Ton meilleur jour est le {best} ({best_rate} % de réalisation) et le plus difficile le "
+                              "{worst} ({worst_rate} %).", best=_in_sentence(best["weekday"]),
+                              best_rate=round(best["completion_rate"] * 100), worst=_in_sentence(worst["weekday"]),
+                              worst_rate=round(worst["completion_rate"] * 100)),
+                "evidence": {"weekdays": wd}, "caveat": tr("Description de tes habitudes passées."),
             })
 
     goals = [g for g in goals_progress(session) if g["status"] == "actif" and g["horizon"] in ("mensuel", "hebdomadaire", "annuel")]
     for g in [g for g in goals if (g["days_since_last_action"] or 0) >= 14][:2]:
         out.append({
             "type": "objectif", "icon": "flag",
-            "title": f"Objectif en sommeil : {g['title']}",
-            "message": f"Aucune action reliée à cet objectif depuis {g['days_since_last_action']} jours.",
-            "evidence": g, "caveat": "Peut être volontaire : à mettre en pause ou à relancer.",
+            "title": tr("Objectif en sommeil : {title}", title=g["title"]),
+            "message": tr("Aucune action reliée à cet objectif depuis {n} jours.", n=g["days_since_last_action"]),
+            "evidence": g, "caveat": tr("Peut être volontaire : à mettre en pause ou à relancer."),
         })
 
     ent = entry_discipline(session, start, end)
     if ent["n_closed"] >= 7 and (ent["forget_rate"] or 0) >= 0.2:
         out.append({
-            "type": "saisie", "icon": "calendar", "title": "Journées souvent oubliées",
-            "message": ent["message"] + " Un rappel le soir, à heure fixe, peut aider à tout noter le jour même.",
+            "type": "saisie", "icon": "calendar", "title": tr("Journées souvent oubliées"),
+            "message": ent["message"] + " " + tr("Un rappel le soir, à heure fixe, peut aider à tout noter le jour même."),
             "evidence": {k: ent[k] for k in ("n_closed", "on_time", "late", "missed", "forget_rate", "mean_delay")},
-            "caveat": f"Une journée ne peut être rattrapée que pendant {ent['window_days']} jours.",
+            "caveat": tr("Une journée ne peut être rattrapée que pendant {n} jours.", n=ent["window_days"]),
         })
     for p_ in ent["pending"][:3]:
+        d, dl = date.fromisoformat(p_["date"]), date.fromisoformat(p_["deadline"])
         out.append({
-            "type": "rattrapage", "icon": "clock", "title": f"À rattraper : {date.fromisoformat(p_['date']):%d/%m}",
-            "message": (f"Journée du {date.fromisoformat(p_['date']):%d/%m/%Y} : {p_['reason']}. "
-                        f"Encore {p_['days_left']} jour(s) pour la renseigner (jusqu'au {date.fromisoformat(p_['deadline']):%d/%m})."
+            "type": "rattrapage", "icon": "clock", "title": tr("À rattraper : {d}", d=f"{d:%d/%m}"),
+            "message": (tr("Journée du {d} : {reason}. Encore {n} jour(s) pour la renseigner (jusqu'au {deadline}).",
+                           d=f"{d:%d/%m/%Y}", reason=p_["reason"], n=p_["days_left"], deadline=f"{dl:%d/%m}")
                         if p_["days_left"] > 0 else
-                        f"Journée du {date.fromisoformat(p_['date']):%d/%m/%Y} : {p_['reason']}. Dernier jour pour la renseigner."),
-            "evidence": p_, "caveat": "Passé ce délai, la journée est verrouillée.",
+                        tr("Journée du {d} : {reason}. Dernier jour pour la renseigner.", d=f"{d:%d/%m/%Y}",
+                           reason=p_["reason"])),
+            "evidence": p_, "caveat": tr("Passé ce délai, la journée est verrouillée."),
         })
 
     people = session.query(m.Person).filter(m.Person.contact_every_days.isnot(None)).all()
@@ -652,10 +705,11 @@ def insights(session: Session, start: date | None = None, end: date | None = Non
         gap = (date.today() - last).days if last else None
         if gap is None or gap > p.contact_every_days:
             out.append({
-                "type": "relation", "icon": "users", "title": f"Relation à entretenir : {p.name}",
-                "message": (f"Dernier échange il y a {gap} jours (rythme souhaité : tous les {p.contact_every_days} jours)."
-                            if gap is not None else "Aucun échange enregistré pour le moment."),
-                "evidence": {"person_id": p.id, "days_since": gap}, "caveat": "Rappel issu de ton propre rythme souhaité.",
+                "type": "relation", "icon": "users", "title": tr("Relation à entretenir : {name}", name=p.name),
+                "message": (tr("Dernier échange il y a {gap} jours (rythme souhaité : tous les {every} jours).",
+                               gap=gap, every=p.contact_every_days)
+                            if gap is not None else tr("Aucun échange enregistré pour le moment.")),
+                "evidence": {"person_id": p.id, "days_since": gap}, "caveat": tr("Rappel issu de ton propre rythme souhaité."),
             })
     return out
 
@@ -730,7 +784,7 @@ def entry_discipline(session: Session, start: date | None = None, end: date | No
     closed = closed.assign(forgot=closed["status"] != "a_temps", weekday=pd.to_datetime(closed["date"]).dt.dayofweek)
     by_weekday = []
     for wd, g in closed.groupby("weekday"):
-        by_weekday.append({"weekday": ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"][int(wd)],
+        by_weekday.append({"weekday": weekday_name(int(wd)),
                            "n_days": int(len(g)), "forget_rate": rate(int(g["forgot"].sum()), len(g)),
                            "missed_rate": rate(int((g["status"] == "oubliee").sum()), len(g))})
     weekly_rows = []
@@ -759,21 +813,23 @@ def entry_discipline(session: Session, start: date | None = None, end: date | No
         "best_on_time_streak": best,
         "by_weekday": by_weekday, "weekly": weekly_rows,
         "pending": [{"date": str(r.date), "deadline": str(r.deadline), "days_left": int(r.days_left),
-                     "reason": "journée vide" if r.status == "a_rattraper" else "bilan du soir manquant"}
+                     "reason_code": "vide" if r.status == "a_rattraper" else "soir",
+                     "reason": tr("journée vide") if r.status == "a_rattraper" else tr("bilan du soir manquant")}
                     for r in pending.sort_values("date").itertuples()],
-        "days": [{"date": str(r["date"]), "status": r["status"], "status_label": ENTRY_STATUS[r["status"]],
+        "days": [{"date": str(r["date"]), "status": r["status"], "status_label": tr(ENTRY_STATUS[r["status"]]),
                   "delay": r["delay"], "evening_done": r["evening_done"]} for r in rows],
     }
     if n:
-        msg = (f"Sur {n} journées terminées, tu en as renseigné {count['a_temps']} le jour même "
-               f"({round(out['on_time_rate'] * 100)} %), rattrapé {count['rattrapee']} "
-               f"({round(out['late_rate'] * 100)} %) et oublié définitivement {count['oubliee']} "
-               f"({round(out['missed_rate'] * 100)} %).")
+        msg = tr("Sur {n} journées terminées, tu en as renseigné {on_time} le jour même ({on_time_pct} %), rattrapé "
+                 "{late} ({late_pct} %) et oublié définitivement {missed} ({missed_pct} %).",
+                 n=n, on_time=count["a_temps"], on_time_pct=round(out["on_time_rate"] * 100), late=count["rattrapee"],
+                 late_pct=round(out["late_rate"] * 100), missed=count["oubliee"], missed_pct=round(out["missed_rate"] * 100))
         if out["mean_delay"]:
-            msg += f" Les rattrapages arrivent en moyenne {str(out['mean_delay']).replace('.', ',')} jour(s) plus tard."
+            msg += " " + tr("Les rattrapages arrivent en moyenne {d} jour(s) plus tard.", d=num(out["mean_delay"]))
         if worst and (worst["forget_rate"] or 0) > 0 and worst["n_days"] >= 3:
-            msg += f" Le {worst['weekday'].lower()} est le jour le plus souvent oublié ({round(worst['forget_rate'] * 100)} %)."
+            msg += " " + tr("Le {day} est le jour le plus souvent oublié ({pct} %).", day=_in_sentence(worst["weekday"]),
+                            pct=round(worst["forget_rate"] * 100))
         out["message"] = msg
     else:
-        out["message"] = "Pas encore de journée terminée à analyser."
+        out["message"] = tr("Pas encore de journée terminée à analyser.")
     return out

@@ -171,7 +171,8 @@ def test_backup(client):
 
 def test_authentication(anon):
     st = anon.get("/api/auth/status").json()
-    assert st == {"configured": False, "authenticated": False, "user": None, "backfill_days": 4}
+    assert {k: st[k] for k in ("configured", "authenticated", "user", "backfill_days")} == \
+        {"configured": False, "authenticated": False, "user": None, "backfill_days": 4}
     assert anon.get("/api/goals").status_code == 401  # aucune donnée sans connexion
     assert anon.get("/profil/photo").status_code == 200  # la photo reste visible sur la page de connexion
     assert anon.post("/api/auth/setup", json={"username": "kodjo", "password": "court"}).status_code == 422

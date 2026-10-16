@@ -13,6 +13,8 @@ Téléphone (PWA)  ──Wi-Fi local──▶  FastAPI (PC)  ──▶  SQLite +
 Couleurs du drapeau togolais (vert `#006A4E`, jaune `#FFCE00`, rouge `#D21034`, blanc),
 icônes dessinées en Python (`backend/icons.py`), aucun emoji.
 
+Application **bilingue français et anglais** ([English summary below](#english-summary)).
+
 ## Contenu du dossier
 
 | Élément | Description |
@@ -69,6 +71,26 @@ Autres commandes :
 | `PEI_DELAI_SAISIE_JOURS=4` | délai pour rattraper une journée passée (4 jours par défaut) |
 | `python run.py serve --cert cert.pem --key key.pem` | HTTPS local, active l'enregistrement direct au micro |
 | `python -m pytest` | tests automatisés |
+
+## Langue : français ou anglais
+
+Toute l'application existe dans les deux langues : interface du téléphone, tableau de bord,
+analyses et recommandations, réponses de la mémoire, messages d'erreur et export Excel
+(noms des feuilles, en têtes et formules).
+
+* **Choisir la langue** : sélecteur **FR | EN** sur la page de connexion, dans **Plus, Réglages, Langue**,
+  et en haut à droite du tableau de bord. Le choix est mémorisé dans ton compte et partagé entre le
+  téléphone et le PC.
+* Avant la connexion, la langue du navigateur est utilisée.
+* **Saisie dans les deux langues** : tu peux écrire ou dicter en français ou en anglais, quelle que soit
+  la langue de l'interface. La langue du texte est détectée automatiquement (règles d'extraction propres
+  à chaque langue, Whisper en mode `auto`). Pour forcer une langue de transcription :
+  `PEI_WHISPER_LANG=fr` ou `PEI_WHISPER_LANG=en`.
+* Une activité dictée en anglais ou en français tombe dans la même catégorie (« Prière » et « Prayer »),
+  affichée dans la langue de l'interface.
+* Ajouter ou corriger une traduction : `backend/locales/en.py` (serveur, tableau de bord, Excel) et
+  `frontend/src/i18n_en.js` (téléphone). Le texte français sert de clé ; `tests/test_i18n.py` vérifie
+  qu'aucun texte affiché n'est oublié.
 
 ## Compte, connexion et photo
 
@@ -242,3 +264,26 @@ Les phases 1 à 8 du cahier des charges disposent d'une première version. Piste
 modèle NLP local plus riche (Transformers) en complément du moteur à règles, recherche
 sémantique par embeddings locaux, chiffrement de la base (SQLCipher), synchronisation
 automatique des sauvegardes vers un disque externe, résumé mensuel généré automatiquement.
+
+## English summary
+
+PEI (Personal Evolution Intelligence) is a fully local personal system that turns daily life into data
+to understand your own progress: morning intentions, actions during the day, evening review, then
+statistics, predictions and recommendations. Nothing leaves your PC.
+
+* **Language**: the whole app is available in French and English. Use the **FR | EN** switch on the sign in
+  page, in **More, Settings, Language**, or at the top right of the dashboard. The choice is saved in your
+  account. You can type or dictate in either language; it is detected automatically.
+* **Start**: `pip install -r requirements.txt`, then `python run.py all` (API and phone app on port 8000,
+  dashboard on port 8001). Open `http://<PC address>:8000` on your phone (same Wi-Fi) and add it to the
+  home screen. `python run.py demo` creates a demo database, then `python run.py all --db data/demo.db`.
+* **Daily use**: Morning (say or write your intentions, the AI suggests, you confirm), Day (note what you
+  actually do), Evening (tell your day; PEI matches it with your intentions). A past day can be completed
+  up to 4 days later, then it is locked and counted as forgotten.
+* **Analysis**: dashboard (Shiny for Python) with consistency, completion, time per dimension, calibration
+  of planned versus actual time, correlations, trends, unusual days, experiments, simulations, and an
+  Excel export whose indicators are computed with formulas.
+* **Privacy**: personal account (hashed password), local SQLite database, local Whisper transcription,
+  no cloud service.
+* **Tests**: `python -m pytest`.
+

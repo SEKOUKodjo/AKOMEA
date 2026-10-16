@@ -13,6 +13,7 @@ from pathlib import Path
 from fastapi import UploadFile
 
 from ..config import BASE_DIR, settings
+from ..i18n import tr
 
 DEFAULT_PHOTO = BASE_DIR / "frontend" / "profil" / "photo_par_defaut.png"
 NAMES = ("photo.jpg", "photo.jpeg", "photo.png", "photo.webp")
@@ -36,12 +37,12 @@ def save_photo(upload: UploadFile) -> Path:
 
     data = upload.file.read(MAX_MB * 1024 * 1024 + 1)
     if len(data) > MAX_MB * 1024 * 1024:
-        raise ValueError(f"Photo trop lourde (limite {MAX_MB} Mo).")
+        raise ValueError(tr("Photo trop lourde (limite {n} Mo).", n=MAX_MB))
     try:
         img = Image.open(io.BytesIO(data))
         img = ImageOps.exif_transpose(img)  # respecte l'orientation prise par le téléphone
     except (UnidentifiedImageError, OSError) as exc:
-        raise ValueError("Ce fichier n'est pas une image lisible.") from exc
+        raise ValueError(tr("Ce fichier n'est pas une image lisible.")) from exc
     # Recadrage carré centré, puis réduction : la photo est affichée en rond.
     side = min(img.size)
     left, top = (img.width - side) // 2, (img.height - side) // 2

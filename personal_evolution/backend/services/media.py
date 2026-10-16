@@ -15,6 +15,7 @@ from ai.transcription import whisper_local
 from .. import models as m
 from ..config import settings
 from ..db import session_scope
+from ..i18n import tr
 from . import days as day_service
 
 _EXT_TYPES = {
@@ -60,7 +61,7 @@ def save_upload(session: Session, upload: UploadFile, *, day: date | None, momen
             if size > limit:
                 out.close()
                 target.unlink(missing_ok=True)
-                raise ValueError(f"Fichier trop volumineux (limite {settings.max_upload_mb} Mo)")
+                raise ValueError(tr("Fichier trop volumineux (limite {n} Mo)", n=settings.max_upload_mb))
             digest.update(chunk)
             out.write(chunk)
 
@@ -98,7 +99,8 @@ def run_transcription(media_id: int) -> None:
         media.transcription_status = "en_cours"
         path = absolute_path(media)
     try:
-        result = whisper_local.transcribe(path, settings.whisper_model, settings.whisper_language)
+        language = None if settings.whisper_language in ("", "auto") else settings.whisper_language
+        result = whisper_local.transcribe(path, settings.whisper_model, language)
     except Exception as exc:  # noqa: BLE001
         with session_scope() as session:
             media = session.get(m.Media, media_id)

@@ -8,7 +8,7 @@
 
 Personal Evolution Intelligence (PEI) est un système personnel, entièrement local, qui transforme le vécu quotidien en données structurées afin d'observer objectivement son évolution. Il ne se limite pas à une liste de tâches : il enregistre ce que l'on voulait faire (intention), ce que l'on a réellement fait (action) et ce que cela a produit (résultat), puis en tire des statistiques, des tendances, des estimations et des recommandations toujours justifiées par les données.
 
-La version livrée couvre les huit phases du cahier des charges dans une première version fonctionnelle : socle FastAPI et SQLite, interface téléphone installable (PWA), multimédia avec transcription locale, extraction automatique en français, tableau de bord Shiny for Python, analyse statistique longitudinale, modèles prédictifs et recommandations. L'ensemble représente environ 5 600 lignes de Python et 1 300 lignes d'interface web, validées par 25 tests automatisés.
+La version livrée couvre les huit phases du cahier des charges dans une première version fonctionnelle : socle FastAPI et SQLite, interface téléphone installable (PWA), multimédia avec transcription locale, extraction automatique en français, tableau de bord Shiny for Python, analyse statistique longitudinale, modèles prédictifs et recommandations. L'ensemble représente environ 5 600 lignes de Python et 1 300 lignes d'interface web, validées par 36 tests automatisés.
 
 | Élément | Choix retenu |
 |---|---|
@@ -290,6 +290,15 @@ Tout ce qui est écrit, transcrit ou validé est indexé. L'utilisateur peut che
 * « Quelles difficultés reviennent régulièrement ? »
 * « Comment ai je évolué ce mois ci ? », avec des périodes comme hier, cette semaine, les 30 derniers jours, un mois nommé ou une année.
 
+### 13.1 Bilinguisme français et anglais
+
+Toute l'application existe en français et en anglais : interface du téléphone, tableau de bord, messages d'analyse, recommandations, réponses de la mémoire et export Excel (noms des feuilles, en têtes, formules). Un sélecteur FR | EN figure sur la page de connexion, dans les Réglages et en haut du tableau de bord ; le choix est mémorisé dans le compte (colonne users.language) et partagé entre le téléphone et le PC.
+
+* Langue de l'interface : choix du compte, sinon cookie pei_lang, sinon langue du navigateur.
+* Saisie : un texte ou un audio peut être en français ou en anglais, quelle que soit la langue de l'interface. La langue est détectée automatiquement (règles d'extraction propres à chaque langue, Whisper en mode auto).
+* Catégories : une même activité dictée dans l'une ou l'autre langue tombe dans la même catégorie, affichée dans la langue de l'interface.
+* Traductions : le texte français sert de clé ; backend/locales/en.py et frontend/src/i18n_en.js donnent l'anglais. Un test vérifie que chaque texte affiché possède sa traduction.
+
 ## 14. Confidentialité et sécurité
 
 * Aucune donnée ne quitte le PC : pas de cloud, pas de service externe, pas de bibliothèque chargée depuis Internet.
@@ -324,7 +333,7 @@ Toutes les icônes (plus de soixante) sont dessinées en SVG dans backend/icons.
 
 ## 17. Tests et validation
 
-25 tests automatisés (python -m pytest) couvrent l'extraction des durées et des exemples du cahier des charges, le cycle matin et soir par l'API, la provenance (statut « corrigé »), la mise à jour d'une intention par une activité, la conservation de l'audio original, la hiérarchie des objectifs, les compétences, les statistiques, la prédiction, la simulation, la mémoire, la sauvegarde, le code PIN et l'interface, l'export Excel, la connexion (création du compte, blocage après 5 essais, photo de profil), le verrouillage des journées après 4 jours et le calcul des statuts de saisie. Résultat : 25 tests réussis.
+36 tests automatisés (python -m pytest) couvrent l'extraction des durées et des exemples du cahier des charges, le cycle matin et soir par l'API, la provenance (statut « corrigé »), la mise à jour d'une intention par une activité, la conservation de l'audio original, la hiérarchie des objectifs, les compétences, les statistiques, la prédiction, la simulation, la mémoire, la sauvegarde, le code PIN et l'interface, l'export Excel, la connexion (création du compte, blocage après 5 essais, photo de profil), le verrouillage des journées après 4 jours et le calcul des statuts de saisie, ainsi que le bilinguisme (chaque texte traduit, préférence de langue, API, extraction et export Excel en anglais). Résultat : 36 tests réussis.
 
 Une base de démonstration de 150 jours (python run.py demo) a permis de vérifier l'ensemble :
 

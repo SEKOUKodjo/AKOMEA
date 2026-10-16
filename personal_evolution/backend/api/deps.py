@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from .. import models as m
 from ..config import settings
 from ..db import get_session
+from ..i18n import tr
 from ..services import auth
 
 
@@ -18,13 +19,13 @@ def current_user(request: Request, pei_session: str | None = Cookie(default=None
     token = auth.token_from_request(pei_session, authorization)
     user = auth.user_for_token(session, token)
     if user is None:
-        raise HTTPException(status_code=401, detail="Connexion requise")
+        raise HTTPException(status_code=401, detail=tr("Connexion requise"))
     request.state.user = user
     return user
 
 
 def not_found(what: str = "Élément") -> HTTPException:
-    return HTTPException(status_code=404, detail=f"{what} introuvable")
+    return HTTPException(status_code=404, detail=tr("{what} introuvable", what=tr(what)))
 
 
 def deadline(day: date) -> date:
@@ -42,12 +43,13 @@ def ensure_editable(day: date | None) -> None:
     day = day or date.today()
     today = date.today()
     if day > today:
-        raise HTTPException(status_code=403, detail="On ne peut pas renseigner une journée future.")
+        raise HTTPException(status_code=403, detail=tr("On ne peut pas renseigner une journée future."))
     if not is_editable(day, today):
         raise HTTPException(
             status_code=403,
-            detail=(f"La journée du {day:%d/%m/%Y} est verrouillée : une journée ne peut être renseignée que "
-                    f"jusqu'à {settings.backfill_days} jours après (au plus tard le {deadline(day):%d/%m/%Y})."),
+            detail=tr("La journée du {day} est verrouillée : une journée ne peut être renseignée que jusqu'à {n} jours "
+                      "après (au plus tard le {deadline}).", day=f"{day:%d/%m/%Y}", n=settings.backfill_days,
+                      deadline=f"{deadline(day):%d/%m/%Y}"),
         )
 
 

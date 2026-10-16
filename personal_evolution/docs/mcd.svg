@@ -40,8 +40,8 @@
 <line x1="330.0" y1="1261.0" x2="390.0" y2="1260.6" stroke="#5B6A63" stroke-width="1.6"/>
 <line x1="330.0" y1="1820.0" x2="391.7" y2="1824.3" stroke="#5B6A63" stroke-width="1.6"/>
 <line x1="620.0" y1="1814.5" x2="556.1" y2="1821.3" stroke="#5B6A63" stroke-width="1.6"/>
-<line x1="2625.0" y1="1184.0" x2="2625.0" y2="1206.0" stroke="#5B6A63" stroke-width="1.6"/>
-<line x1="2625.0" y1="1320.0" x2="2625.0" y2="1264.0" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="2625.0" y1="1166.0" x2="2625.0" y2="1206.0" stroke="#5B6A63" stroke-width="1.6"/>
+<line x1="2625.0" y1="1330.0" x2="2625.0" y2="1264.0" stroke="#5B6A63" stroke-width="1.6"/>
 <rect x="75.9" y="382.0" width="98" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
 <text x="124.9" y="397.0" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,n parent</text>
 <rect x="196.1" y="382.0" width="98" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
@@ -110,10 +110,10 @@
 <text x="347.3" y="1825.2" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,n</text>
 <rect x="584.6" y="1805.4" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
 <text x="602.1" y="1820.4" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">1,1</text>
-<rect x="2607.5" y="1179.2" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
-<text x="2625.0" y="1194.2" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,n</text>
-<rect x="2607.5" y="1293.3" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
-<text x="2625.0" y="1308.3" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">1,1</text>
+<rect x="2607.5" y="1166.2" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="2625.0" y="1181.2" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">0,n</text>
+<rect x="2607.5" y="1300.5" width="35" height="20" rx="4" fill="#FFFFFF" stroke="#D21034" stroke-width="1"/>
+<text x="2625.0" y="1315.5" text-anchor="middle" font-size="13" font-weight="bold" fill="#D21034">1,1</text>
 <rect x="620" y="420" width="290" height="488" rx="8" fill="#FFFFFF" stroke="#006A4E" stroke-width="2.2"/>
 <path d="M620 456 V428 Q620 420 628 420 H902 Q910 420 910 428 V456 Z" fill="#006A4E"/>
 <text x="765.0" y="444" text-anchor="middle" font-size="17" font-weight="bold" fill="#FFFFFF">JOUR</text>
@@ -314,26 +314,27 @@
 <text x="632" y="1818" font-size="15" fill="#10231C">kind</text>
 <text x="632" y="1840" font-size="15" fill="#10231C">note</text>
 <text x="632" y="1862" font-size="15" fill="#10231C">created_at</text>
-<rect x="2480" y="960" width="290" height="224" rx="8" fill="#FFFFFF" stroke="#006A4E" stroke-width="2.2"/>
-<path d="M2480 996 V968 Q2480 960 2488 960 H2762 Q2770 960 2770 968 V996 Z" fill="#006A4E"/>
-<text x="2625.0" y="984" text-anchor="middle" font-size="17" font-weight="bold" fill="#FFFFFF">UTILISATEUR</text>
-<text x="2492" y="1014" font-size="15" fill="#10231C" text-decoration="underline" font-weight="bold">id</text>
-<text x="2492" y="1036" font-size="15" fill="#10231C">username</text>
-<text x="2492" y="1058" font-size="15" fill="#10231C">display_name</text>
-<text x="2492" y="1080" font-size="15" fill="#10231C">password_hash</text>
-<text x="2492" y="1102" font-size="15" fill="#10231C">failed_attempts</text>
-<text x="2492" y="1124" font-size="15" fill="#10231C">locked_until</text>
-<text x="2492" y="1146" font-size="15" fill="#10231C">last_login_at</text>
-<text x="2492" y="1168" font-size="15" fill="#10231C">created_at</text>
-<rect x="2480" y="1320" width="290" height="180" rx="8" fill="#FFFFFF" stroke="#006A4E" stroke-width="2.2"/>
-<path d="M2480 1356 V1328 Q2480 1320 2488 1320 H2762 Q2770 1320 2770 1328 V1356 Z" fill="#006A4E"/>
-<text x="2625.0" y="1344" text-anchor="middle" font-size="17" font-weight="bold" fill="#FFFFFF">SESSION_CONNEXION</text>
-<text x="2492" y="1374" font-size="15" fill="#10231C" text-decoration="underline" font-weight="bold">id</text>
-<text x="2492" y="1396" font-size="15" fill="#10231C">token_hash</text>
-<text x="2492" y="1418" font-size="15" fill="#10231C">user_agent</text>
-<text x="2492" y="1440" font-size="15" fill="#10231C">created_at</text>
-<text x="2492" y="1462" font-size="15" fill="#10231C">last_seen_at</text>
-<text x="2492" y="1484" font-size="15" fill="#10231C">expires_at</text>
+<rect x="2480" y="920" width="290" height="246" rx="8" fill="#FFFFFF" stroke="#006A4E" stroke-width="2.2"/>
+<path d="M2480 956 V928 Q2480 920 2488 920 H2762 Q2770 920 2770 928 V956 Z" fill="#006A4E"/>
+<text x="2625.0" y="944" text-anchor="middle" font-size="17" font-weight="bold" fill="#FFFFFF">UTILISATEUR</text>
+<text x="2492" y="974" font-size="15" fill="#10231C" text-decoration="underline" font-weight="bold">id</text>
+<text x="2492" y="996" font-size="15" fill="#10231C">username</text>
+<text x="2492" y="1018" font-size="15" fill="#10231C">display_name</text>
+<text x="2492" y="1040" font-size="15" fill="#10231C">language</text>
+<text x="2492" y="1062" font-size="15" fill="#10231C">password_hash</text>
+<text x="2492" y="1084" font-size="15" fill="#10231C">failed_attempts</text>
+<text x="2492" y="1106" font-size="15" fill="#10231C">locked_until</text>
+<text x="2492" y="1128" font-size="15" fill="#10231C">last_login_at</text>
+<text x="2492" y="1150" font-size="15" fill="#10231C">created_at</text>
+<rect x="2480" y="1330" width="290" height="180" rx="8" fill="#FFFFFF" stroke="#006A4E" stroke-width="2.2"/>
+<path d="M2480 1366 V1338 Q2480 1330 2488 1330 H2762 Q2770 1330 2770 1338 V1366 Z" fill="#006A4E"/>
+<text x="2625.0" y="1354" text-anchor="middle" font-size="17" font-weight="bold" fill="#FFFFFF">SESSION_CONNEXION</text>
+<text x="2492" y="1384" font-size="15" fill="#10231C" text-decoration="underline" font-weight="bold">id</text>
+<text x="2492" y="1406" font-size="15" fill="#10231C">token_hash</text>
+<text x="2492" y="1428" font-size="15" fill="#10231C">user_agent</text>
+<text x="2492" y="1450" font-size="15" fill="#10231C">created_at</text>
+<text x="2492" y="1472" font-size="15" fill="#10231C">last_seen_at</text>
+<text x="2492" y="1494" font-size="15" fill="#10231C">expires_at</text>
 <ellipse cx="185" cy="470" rx="85.0" ry="29.0" fill="#FFF6CC" stroke="#B58F00" stroke-width="2"/>
 <text x="185" y="475" text-anchor="middle" font-size="14" font-weight="bold" fill="#10231C">DECOMPOSER</text>
 <ellipse cx="945" cy="150" rx="85.0" ry="29.0" fill="#FFF6CC" stroke="#B58F00" stroke-width="2"/>

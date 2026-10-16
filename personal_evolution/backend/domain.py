@@ -69,6 +69,26 @@ DAY_METRICS = {
 
 
 def dimension_label(key: str | None) -> str:
+    """Libellé de la dimension dans la langue courante."""
+    from .i18n import tr
+
     if not key:
-        return "Non classé"
-    return DIMENSIONS.get(key, {}).get("label", key)
+        return tr("Non classé")
+    return tr(DIMENSIONS.get(key, {}).get("label", key))
+
+
+def label(mapping: dict, key: str | None, default: str = "") -> str:
+    """Libellé traduit d'un statut, d'un horizon, d'un type de réflexion..."""
+    from .i18n import tr
+
+    if key is None:
+        return default
+    value = mapping.get(key, key)
+    if isinstance(value, dict):
+        value = value.get("label", key)
+    return tr(value)
+
+
+def labels(mapping: dict) -> dict[str, str]:
+    """Copie traduite d'un dictionnaire de libellés."""
+    return {k: label(mapping, k) for k in mapping}

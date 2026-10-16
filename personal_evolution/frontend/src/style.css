@@ -341,3 +341,9 @@ body.auth-mode main { max-width: none; padding: 0; }
 /* Profil */
 .profile-row { display: flex; gap: 14px; align-items: center; }
 .profile-photo { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 3px var(--yellow); flex: none; }
+
+/* Choix de la langue */
+.lang-switch { display: inline-flex; border: 1.5px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--surface-2); }
+.lang-switch button { border: 0; background: transparent; color: var(--muted); font: inherit; font-weight: 700; font-size: 13px; padding: 7px 14px; cursor: pointer; }
+.lang-switch button.on { background: var(--green); color: #fff; }
+.auth-lang { position: absolute; top: 14px; right: 14px; z-index: 2; }

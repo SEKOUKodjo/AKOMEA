@@ -341,6 +341,7 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(String(60), unique=True)
     display_name: Mapped[str | None] = mapped_column(String(120))
+    language: Mapped[str] = mapped_column(String(5), default="fr")
     password_hash: Mapped[str] = mapped_column(String(200))
     failed_attempts: Mapped[int] = mapped_column(Integer, default=0)
     locked_until: Mapped[datetime | None] = mapped_column(DateTime)

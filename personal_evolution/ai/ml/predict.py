@@ -12,6 +12,8 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
+from backend.i18n import tr
+
 MIN_SAMPLES_ML = 40
 DISCLAIMER = "Estimation fondée sur ton historique, pas une certitude."
 
@@ -89,7 +91,7 @@ def predict_completion(model: CompletionModel, item: dict) -> dict:
         ("dimension", item.get("dimension")))
     base = rate_info["rate"] if rate_info else model.global_rate
     n_ref = rate_info["n"] if rate_info else model.n
-    out = {"model": model.kind, "n_training": model.n, "disclaimer": DISCLAIMER, "base_rate": round(base, 3),
+    out = {"model": model.kind, "n_training": model.n, "disclaimer": tr(DISCLAIMER), "base_rate": round(base, 3),
            "n_similar": n_ref}
     if model.kind == "regression_logistique":
         row = pd.DataFrame([{
@@ -133,8 +135,8 @@ def predict_duration(intentions: pd.DataFrame, category: str | None, dimension: 
         sub, scope = d, "global"
     if len(sub) < 3:
         return {"estimated": estimated, "predicted": estimated, "interval": None, "n": int(len(sub)),
-                "scope": scope, "message": "Pas encore assez d'historique pour corriger ton estimation.",
-                "disclaimer": DISCLAIMER}
+                "scope": scope, "message": tr("Pas encore assez d'historique pour corriger ton estimation."),
+                "disclaimer": tr(DISCLAIMER)}
     ratio = (sub["actual_minutes"] / sub["estimated_minutes"]).clip(0.1, 10)
     lr = np.log(ratio)
     # Moyenne des log ratios, rétrécie vers 0 (pas de correction) quand n est petit.
@@ -145,7 +147,7 @@ def predict_duration(intentions: pd.DataFrame, category: str | None, dimension: 
     return {"estimated": estimated, "predicted": int(round(pred)),
             "interval": [int(round(estimated * q1)), int(round(estimated * q3))], "n": int(len(sub)), "scope": scope,
             "median_ratio": round(float(np.median(ratio)), 2),
-            "message": f"Pour ce type de tâche, prévois plutôt {int(round(pred))} minutes.", "disclaimer": DISCLAIMER}
+            "message": tr("Pour ce type de tâche, prévois plutôt {n} minutes.", n=int(round(pred))), "disclaimer": tr(DISCLAIMER)}
 
 
 def simulate_scenario(intentions: pd.DataFrame, activities: pd.DataFrame, *, category: str | None,
@@ -192,10 +194,10 @@ def simulate_scenario(intentions: pd.DataFrame, activities: pd.DataFrame, *, cat
         "current_hours": round(current, 1), "projected_total_median": round(current + float(p50), 1),
         "histogram": np.histogram(totals, bins=20)[0].tolist(),
         "histogram_edges": [round(float(x), 1) for x in np.histogram(totals, bins=20)[1]],
-        "message": (f"Si ton rythme passé se maintient, {minutes_per_day} minutes par jour pendant {days} jours "
-                    f"représenteraient probablement entre {p10:.0f} et {p90:.0f} heures (médiane {p50:.0f} h), "
-                    f"contre {ideal:.0f} h si tout était réalisé."),
-        "disclaimer": "Simulation à partir de ton historique : une estimation, pas une prédiction certaine.",
+        "message": tr("Si ton rythme passé se maintient, {m} minutes par jour pendant {d} jours représenteraient "
+                      "probablement entre {p10} et {p90} heures (médiane {p50} h), contre {ideal} h si tout était réalisé.",
+                      m=minutes_per_day, d=days, p10=f"{p10:.0f}", p90=f"{p90:.0f}", p50=f"{p50:.0f}", ideal=f"{ideal:.0f}"),
+        "disclaimer": tr("Simulation à partir de ton historique : une estimation, pas une prédiction certaine."),
     }
 
 
@@ -216,4 +218,4 @@ def skill_projection(timeline: list[dict], horizon_days: int = 90) -> dict | Non
     sd = float(np.std(resid, ddof=1)) if len(y) > 2 else 0.5
     return {"slope_per_month": round(float(slope) * 30, 3), "projected": round(proj, 2),
             "interval": [round(max(0, proj - 2 * sd), 2), round(min(5, proj + 2 * sd), 2)],
-            "horizon_days": horizon_days, "disclaimer": DISCLAIMER}
+            "horizon_days": horizon_days, "disclaimer": tr(DISCLAIMER)}

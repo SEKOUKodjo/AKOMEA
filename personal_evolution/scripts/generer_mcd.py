@@ -166,7 +166,8 @@ DESC = {
         "id": "Identifiant", "username": "Identifiant de connexion, unique", "display_name": "Prénom affiché",
         "password_hash": "Empreinte PBKDF2 du mot de passe (jamais le mot de passe lui même)",
         "failed_attempts": "Essais ratés consécutifs", "locked_until": "Connexion bloquée jusqu'à cette date",
-        "last_login_at": "Dernière connexion", "created_at": "Date de création du compte",
+        "language": "Langue de l'interface (fr ou en)", "last_login_at": "Dernière connexion",
+        "created_at": "Date de création du compte",
     },
     "auth_sessions": {
         "id": "Identifiant", "user_id": "Compte connecté", "token_hash": "Empreinte SHA 256 du jeton de session",
@@ -253,7 +254,7 @@ POS = {
     "intentions": (1250, 40), "activities": (1250, 520), "reflections": (1250, 900), "media": (1250, 1230),
     "predictions": (1880, 40), "sources": (1880, 640), "extractions": (2480, 640),
     "people": (40, 1720), "interactions": (620, 1720), "decisions": (1250, 1720), "experiments": (1880, 1720),
-    "users": (2480, 960), "auth_sessions": (2480, 1320),
+    "users": (2480, 920), "auth_sessions": (2480, 1330),
 }
 BOX_W, HEAD_H, LINE_H, FONT = 290, 36, 22, 15
 # Points d'accroche imposés pour éviter qu'un lien traverse une entité

@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from .. import models as m
 from ..config import settings
+from ..i18n import tr
 
 COOKIE = "pei_session"
 ITERATIONS = 240_000
@@ -48,9 +49,9 @@ def verify_password(password: str, stored: str) -> bool:
 
 def check_password_strength(password: str) -> None:
     if len(password) < 8:
-        raise AuthError("Le mot de passe doit contenir au moins 8 caractères.", 400)
+        raise AuthError(tr("Le mot de passe doit contenir au moins 8 caractères."), 400)
     if password.isdigit() or password.isalpha():
-        raise AuthError("Le mot de passe doit mêler lettres et chiffres.", 400)
+        raise AuthError(tr("Le mot de passe doit mêler lettres et chiffres."), 400)
 
 
 def _token_hash(token: str) -> str:
@@ -64,10 +65,10 @@ def is_configured(session: Session) -> bool:
 def create_user(session: Session, username: str, password: str, display_name: str | None = None) -> m.User:
     """Création du compte. Un seul compte : PEI est un système personnel."""
     if is_configured(session):
-        raise AuthError("Un compte existe déjà.", 409)
+        raise AuthError(tr("Un compte existe déjà."), 409)
     username = username.strip()
     if not USERNAME_RE.match(username):
-        raise AuthError("Identifiant : 3 à 40 caractères, lettres, chiffres, point ou souligné.", 400)
+        raise AuthError(tr("Identifiant : 3 à 40 caractères, lettres, chiffres, point ou souligné."), 400)
     check_password_strength(password)
     user = m.User(username=username, display_name=(display_name or "").strip() or username,
                   password_hash=hash_password(password))
@@ -93,10 +94,10 @@ def check_credentials(session: Session, username: str, password: str) -> m.User:
     now = m.now()
     if user is None:
         verify_password(password, hash_password("leurre"))  # même durée de calcul qu'un vrai essai
-        raise AuthError("Identifiant ou mot de passe incorrect.")
+        raise AuthError(tr("Identifiant ou mot de passe incorrect."))
     if user.locked_until and user.locked_until > now:
         minutes = max(1, int((user.locked_until - now).total_seconds() // 60) + 1)
-        raise AuthError(f"Trop d'essais. Réessaie dans {minutes} minute{'s' if minutes > 1 else ''}.", 429)
+        raise AuthError(tr("Trop d'essais. Réessaie dans {n} minute(s).", n=minutes), 429)
     if not verify_password(password, user.password_hash):
         user.failed_attempts = (user.failed_attempts or 0) + 1
         if user.failed_attempts >= MAX_ATTEMPTS:
@@ -132,7 +133,7 @@ def logout(session: Session, token: str | None) -> None:
 
 def change_password(session: Session, user: m.User, current: str, new: str, keep_token: str | None) -> None:
     if not verify_password(current, user.password_hash):
-        raise AuthError("Mot de passe actuel incorrect.", 400)
+        raise AuthError(tr("Mot de passe actuel incorrect."), 400)
     check_password_strength(new)
     user.password_hash = hash_password(new)
     # Les autres appareils sont déconnectés.
@@ -145,7 +146,7 @@ def reset_password(session: Session, username: str, new: str) -> None:
     """Réinitialisation depuis le PC (ligne de commande), en cas d'oubli."""
     user = session.query(m.User).filter(m.User.username == username).first()
     if user is None:
-        raise AuthError("Compte introuvable.", 404)
+        raise AuthError(tr("Compte introuvable."), 404)
     check_password_strength(new)
     user.password_hash = hash_password(new)
     user.failed_attempts, user.locked_until = 0, None

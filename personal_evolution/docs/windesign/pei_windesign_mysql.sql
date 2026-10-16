@@ -259,6 +259,7 @@ CREATE TABLE users (
   id INTEGER NOT NULL AUTO_INCREMENT COMMENT 'Identifiant',
   username VARCHAR(60) NOT NULL COMMENT 'Identifiant de connexion, unique',
   display_name VARCHAR(120) NULL COMMENT 'Prénom affiché',
+  language VARCHAR(5) NOT NULL COMMENT 'Langue de l''interface (fr ou en)',
   password_hash VARCHAR(200) NOT NULL COMMENT 'Empreinte PBKDF2 du mot de passe (jamais le mot de passe lui même)',
   failed_attempts INTEGER NOT NULL COMMENT 'Essais ratés consécutifs',
   locked_until DATETIME NULL COMMENT 'Connexion bloquée jusqu''à cette date',

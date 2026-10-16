@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from .. import models as m
 from ..domain import INTENTION_STATUSES
+from ..i18n import tr
 from ..schemas import (
     ActivityIn,
     ActivityOut,
@@ -112,7 +113,7 @@ def update_intention(intention_id: int, body: IntentionUpdate, session: Session 
     ensure_day_id_editable(session, it.day_id)
     data = body.model_dump(exclude_unset=True)
     if "status" in data and data["status"] not in INTENTION_STATUSES:
-        raise HTTPException(400, "Statut inconnu")
+        raise HTTPException(400, tr("Statut inconnu"))
     for k, v in data.items():
         setattr(it, k, v)
     if "status" in data and data["status"] != "prevu":

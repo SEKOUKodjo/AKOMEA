@@ -188,7 +188,7 @@ def list_experiments(session: Session = Depends(get_session)):
 
 @router.get("/experiments/metrics", tags=["experiences"])
 def experiment_metrics():
-    return [{"key": k, "label": v} for k, v in analytics.METRIC_LABELS.items()]
+    return [{"key": k, "label": v} for k, v in analytics.metric_labels().items()]
 
 
 @router.post("/experiments", response_model=ExperimentOut, tags=["experiences"])

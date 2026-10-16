@@ -9,6 +9,7 @@ from ai.nlp import extract
 
 from .. import models as m
 from ..domain import CLOSED_STATUSES, INTENTION_STATUSES
+from ..i18n import get_lang, tr
 from ..schemas import DayMetrics, EveningIn, MorningIn
 
 
@@ -58,9 +59,9 @@ def parse(session: Session, text: str, moment: str, day_date: date | None, media
     day = get_or_create(session, day_date)
     source = record_source(session, day, text, moment, media_id)
     if moment == "matin":
-        result = extract.extract_intentions(text)
+        result = extract.extract_intentions(text, out_lang=get_lang())
     else:
-        result = extract.extract_review(text, _intention_dicts(day))
+        result = extract.extract_review(text, _intention_dicts(day), out_lang=get_lang())
     proposed = result.to_dict()
     ext = m.Extraction(source_id=source.id, engine=result.engine, engine_version=result.version, proposed=proposed)
     session.add(ext)
@@ -139,7 +140,7 @@ def save_evening(session: Session, data: EveningIn) -> m.Day:
         if it is None or it.day_id != day.id:
             continue
         if rv.status not in INTENTION_STATUSES:
-            raise ValueError(f"Statut inconnu : {rv.status}")
+            raise ValueError(tr("Statut inconnu : {status}", status=rv.status))
         it.status = rv.status
         it.actual_minutes = rv.actual_minutes
         it.result = rv.result or it.result

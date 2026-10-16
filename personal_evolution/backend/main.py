@@ -12,7 +12,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import icons
+from . import i18n, icons
 from .api import account, daily, media, planning, statistics
 from .api.deps import current_user
 from .config import BASE_DIR
@@ -35,6 +35,31 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+
+class LanguageMiddleware:
+    """Fixe la langue de chaque requête : en tête X-PEI-Lang, cookie pei_lang, puis langue du navigateur."""
+
+    def __init__(self, inner):
+        self.inner = inner
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            headers = {k.decode().lower(): v.decode() for k, v in scope.get("headers", [])}
+            cookies = {}
+            for part in headers.get("cookie", "").split(";"):
+                if "=" in part:
+                    k, v = part.strip().split("=", 1)
+                    cookies[k] = v
+            lang = (headers.get("x-pei-lang") or cookies.get(i18n.COOKIE)
+                    or i18n.from_accept_language(headers.get("accept-language")))
+            with i18n.use(lang):
+                await self.inner(scope, receive, send)
+        else:
+            await self.inner(scope, receive, send)
+
+
+app.add_middleware(LanguageMiddleware)
 
 # Toutes les données exigent une session ouverte ; seules la connexion et la photo sont publiques.
 protected = [Depends(current_user)]
