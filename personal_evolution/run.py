@@ -6,6 +6,7 @@
     python run.py demo --db data/demo.db  base de démonstration
     python run.py backup                sauvegarde locale (base et médias)
     python run.py export --days 90      export Excel des données et des indicateurs
+    python run.py motdepasse            réinitialiser le mot de passe oublié
     python run.py reindex               reconstruit l'index de la mémoire
 """
 from __future__ import annotations
@@ -114,6 +115,32 @@ def export(args) -> None:
     print(f"Export Excel créé : {out}")
 
 
+def motdepasse(args) -> None:
+    """Réinitialise le mot de passe depuis le PC (accès physique requis)."""
+    import getpass
+
+    _apply_db(args)
+    from backend import models as m
+    from backend.db import init_engine, session_scope
+    from backend.services import auth
+
+    init_engine()
+    with session_scope() as session:
+        users = [u.username for u in session.query(m.User).all()]
+    if not users:
+        sys.exit("Aucun compte : ouvre l'application pour en créer un.")
+    username = args.user or users[0]
+    new = getpass.getpass(f"Nouveau mot de passe pour {username} : ")
+    if new != getpass.getpass("Confirme : "):
+        sys.exit("Les deux mots de passe sont différents.")
+    try:
+        with session_scope() as session:
+            auth.reset_password(session, username, new)
+    except auth.AuthError as exc:
+        sys.exit(str(exc))
+    print("Mot de passe changé. Tous les appareils devront se reconnecter.")
+
+
 def reindex(args) -> None:
     _apply_db(args)
     from backend.db import init_engine, session_scope
@@ -172,6 +199,11 @@ def main() -> None:
     x.add_argument("--start", help="date de début AAAA-MM-JJ")
     x.add_argument("--end", help="date de fin AAAA-MM-JJ")
     x.set_defaults(func=export)
+
+    pw = sub.add_parser("motdepasse", help="réinitialiser le mot de passe du compte")
+    pw.add_argument("--db")
+    pw.add_argument("--user", help="identifiant (par défaut le seul compte)")
+    pw.set_defaults(func=motdepasse)
 
     r = sub.add_parser("reindex")
     r.add_argument("--db")

@@ -628,6 +628,24 @@ def insights(session: Session, start: date | None = None, end: date | None = Non
             "evidence": g, "caveat": "Peut être volontaire : à mettre en pause ou à relancer.",
         })
 
+    ent = entry_discipline(session, start, end)
+    if ent["n_closed"] >= 7 and (ent["forget_rate"] or 0) >= 0.2:
+        out.append({
+            "type": "saisie", "icon": "calendar", "title": "Journées souvent oubliées",
+            "message": ent["message"] + " Un rappel le soir, à heure fixe, peut aider à tout noter le jour même.",
+            "evidence": {k: ent[k] for k in ("n_closed", "on_time", "late", "missed", "forget_rate", "mean_delay")},
+            "caveat": f"Une journée ne peut être rattrapée que pendant {ent['window_days']} jours.",
+        })
+    for p_ in ent["pending"][:3]:
+        out.append({
+            "type": "rattrapage", "icon": "clock", "title": f"À rattraper : {date.fromisoformat(p_['date']):%d/%m}",
+            "message": (f"Journée du {date.fromisoformat(p_['date']):%d/%m/%Y} : {p_['reason']}. "
+                        f"Encore {p_['days_left']} jour(s) pour la renseigner (jusqu'au {date.fromisoformat(p_['deadline']):%d/%m})."
+                        if p_["days_left"] > 0 else
+                        f"Journée du {date.fromisoformat(p_['date']):%d/%m/%Y} : {p_['reason']}. Dernier jour pour la renseigner."),
+            "evidence": p_, "caveat": "Passé ce délai, la journée est verrouillée.",
+        })
+
     people = session.query(m.Person).filter(m.Person.contact_every_days.isnot(None)).all()
     for p in people:
         last = max((i.date for i in p.interactions), default=None)
@@ -639,4 +657,123 @@ def insights(session: Session, start: date | None = None, end: date | None = Non
                             if gap is not None else "Aucun échange enregistré pour le moment."),
                 "evidence": {"person_id": p.id, "days_since": gap}, "caveat": "Rappel issu de ton propre rythme souhaité.",
             })
+    return out
+
+
+ENTRY_STATUS = {
+    "a_temps": "Renseignée le jour même",
+    "rattrapee": "Rattrapée plus tard",
+    "oubliee": "Oubliée (verrouillée)",
+    "a_rattraper": "À rattraper",
+    "en_cours": "Journée en cours",
+}
+
+
+def entry_discipline(session: Session, start: date | None = None, end: date | None = None,
+                     today: date | None = None) -> dict:
+    """Régularité de saisie : à quel point j'oublie de renseigner mes journées.
+
+    Pour chaque jour : renseigné le jour même, rattrapé plus tard (dans le délai autorisé),
+    oublié définitivement (délai dépassé), encore rattrapable, ou en cours.
+    """
+    from ..config import settings
+
+    today = today or date.today()
+    window = settings.backfill_days
+    first = session.query(m.Day.date).order_by(m.Day.date).first()
+    start = start or (first[0] if first else today)
+    end = min(end or today, today)
+    if start > end:
+        start = end
+    days = {d.date: d for d in session.query(m.Day).filter(m.Day.date >= start, m.Day.date <= end).all()}
+    rows = []
+    for k in range((end - start).days + 1):
+        d = start + timedelta(days=k)
+        rec = days.get(d)
+        stamps, content = [], False
+        has_intentions, evening_at, morning_at = False, None, None
+        if rec is not None:
+            has_intentions = bool(rec.intentions)
+            content = bool(rec.intentions or rec.activities or rec.reflections or rec.highlight or rec.general_comment
+                           or any(getattr(rec, c) is not None for c in DAY_COLUMNS))
+            stamps = [x.created_at for x in (*rec.intentions, *rec.activities, *rec.reflections) if x.created_at]
+            stamps += [t for t in (rec.created_at, rec.morning_done_at, rec.evening_done_at) if t]
+            evening_at, morning_at = rec.evening_done_at, rec.morning_done_at
+        editable = d <= today <= d + timedelta(days=window)
+        if d == today:
+            delay, status = None, "en_cours"
+        elif content:
+            delay = max(0, (min(stamps).date() - d).days) if stamps else 0
+            status = "a_temps" if delay == 0 else "rattrapee"
+        else:
+            delay = None
+            status = "a_rattraper" if editable else "oubliee"
+        evening_delay = max(0, (evening_at.date() - d).days) if evening_at else None
+        rows.append({
+            "date": d, "status": status, "delay": delay, "editable": editable,
+            "deadline": d + timedelta(days=window), "days_left": (d + timedelta(days=window) - today).days,
+            "has_intentions": has_intentions, "morning_done": morning_at is not None,
+            "evening_done": evening_at is not None, "evening_delay": evening_delay,
+            "evening_missing": has_intentions and evening_at is None and not editable,
+        })
+    df = pd.DataFrame(rows)
+    closed = df[df["status"].isin(["a_temps", "rattrapee", "oubliee"])]
+    n = int(len(closed))
+    count = {s: int((closed["status"] == s).sum()) for s in ("a_temps", "rattrapee", "oubliee")}
+
+    def rate(x: int, total: int) -> float | None:
+        return round(x / total, 3) if total else None
+
+    late = closed[closed["status"] == "rattrapee"]
+    with_int = df[df["has_intentions"] & ~df["editable"]]
+    # Oubli le jour même = la journée n'a pas été renseignée le jour où elle a eu lieu.
+    closed = closed.assign(forgot=closed["status"] != "a_temps", weekday=pd.to_datetime(closed["date"]).dt.dayofweek)
+    by_weekday = []
+    for wd, g in closed.groupby("weekday"):
+        by_weekday.append({"weekday": ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"][int(wd)],
+                           "n_days": int(len(g)), "forget_rate": rate(int(g["forgot"].sum()), len(g)),
+                           "missed_rate": rate(int((g["status"] == "oubliee").sum()), len(g))})
+    weekly_rows = []
+    if not df.empty:
+        wk = df.assign(week=pd.to_datetime(df["date"]).dt.to_period("W").dt.start_time)
+        for week, g in wk.groupby("week"):
+            weekly_rows.append({"week": str(week.date()), **{s: int((g["status"] == s).sum()) for s in ENTRY_STATUS}})
+    # Plus longue série de jours renseignés le jour même.
+    best = cur = 0
+    for s in df["status"]:
+        cur = cur + 1 if s == "a_temps" else (cur if s == "en_cours" else 0)
+        best = max(best, cur)
+    pending = df[(df["status"] == "a_rattraper") | (df["editable"] & df["has_intentions"] & ~df["evening_done"]
+                                                    & (df["date"] < today))]
+    worst = max(by_weekday, key=lambda w: w["forget_rate"] or 0) if by_weekday else None
+    out = {
+        "start": str(start), "end": str(end), "window_days": window, "n_days": int(len(df)), "n_closed": n,
+        "on_time": count["a_temps"], "late": count["rattrapee"], "missed": count["oubliee"],
+        "on_time_rate": rate(count["a_temps"], n), "late_rate": rate(count["rattrapee"], n),
+        "missed_rate": rate(count["oubliee"], n),
+        "forget_rate": rate(count["rattrapee"] + count["oubliee"], n),
+        "mean_delay": _round(late["delay"].mean(), 1) if len(late) else None,
+        "delay_distribution": [{"delay": int(k), "count": int(v)} for k, v in late["delay"].value_counts().sort_index().items()],
+        "evening_missing": int(with_int["evening_missing"].sum()),
+        "evening_missing_rate": rate(int(with_int["evening_missing"].sum()), len(with_int)),
+        "best_on_time_streak": best,
+        "by_weekday": by_weekday, "weekly": weekly_rows,
+        "pending": [{"date": str(r.date), "deadline": str(r.deadline), "days_left": int(r.days_left),
+                     "reason": "journée vide" if r.status == "a_rattraper" else "bilan du soir manquant"}
+                    for r in pending.sort_values("date").itertuples()],
+        "days": [{"date": str(r["date"]), "status": r["status"], "status_label": ENTRY_STATUS[r["status"]],
+                  "delay": r["delay"], "evening_done": r["evening_done"]} for r in rows],
+    }
+    if n:
+        msg = (f"Sur {n} journées terminées, tu en as renseigné {count['a_temps']} le jour même "
+               f"({round(out['on_time_rate'] * 100)} %), rattrapé {count['rattrapee']} "
+               f"({round(out['late_rate'] * 100)} %) et oublié définitivement {count['oubliee']} "
+               f"({round(out['missed_rate'] * 100)} %).")
+        if out["mean_delay"]:
+            msg += f" Les rattrapages arrivent en moyenne {str(out['mean_delay']).replace('.', ',')} jour(s) plus tard."
+        if worst and (worst["forget_rate"] or 0) > 0 and worst["n_days"] >= 3:
+            msg += f" Le {worst['weekday'].lower()} est le jour le plus souvent oublié ({round(worst['forget_rate'] * 100)} %)."
+        out["message"] = msg
+    else:
+        out["message"] = "Pas encore de journée terminée à analyser."
     return out

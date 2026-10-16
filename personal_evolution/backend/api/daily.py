@@ -22,7 +22,7 @@ from ..schemas import (
     ReflectionOut,
 )
 from ..services import days as day_service
-from .deps import get_session, not_found
+from .deps import deadline, ensure_day_id_editable, ensure_editable, get_session, is_editable, not_found
 
 router = APIRouter(tags=["quotidien"])
 
@@ -30,22 +30,26 @@ router = APIRouter(tags=["quotidien"])
 @router.post("/morning/parse")
 def morning_parse(body: ParseRequest, session: Session = Depends(get_session)):
     """Analyse le texte (ou la transcription) du matin. Rien n'est enregistré comme intention avant validation."""
+    ensure_editable(body.date)
     return day_service.parse(session, body.text, "matin", body.date, body.media_id)
 
 
 @router.post("/morning")
 def morning(body: MorningIn, session: Session = Depends(get_session)):
+    ensure_editable(body.date)
     day = day_service.save_morning(session, body)
     return day_service.day_detail(session, day)
 
 
 @router.post("/evening/parse")
 def evening_parse(body: ParseRequest, session: Session = Depends(get_session)):
+    ensure_editable(body.date)
     return day_service.parse(session, body.text, "soir", body.date, body.media_id)
 
 
 @router.post("/evening")
 def evening(body: EveningIn, session: Session = Depends(get_session)):
+    ensure_editable(body.date)
     try:
         day = day_service.save_evening(session, body)
     except ValueError as exc:
@@ -66,22 +70,24 @@ def list_days(start: date | None = None, end: date | None = None, limit: int = Q
         detail = day_service.day_detail(session, d)
         out.append({"date": str(d.date), "summary": detail["summary"], "mood": d.mood, "energy": d.energy,
                     "highlight": d.highlight, "morning_done": d.morning_done_at is not None,
-                    "evening_done": d.evening_done_at is not None})
+                    "evening_done": d.evening_done_at is not None, "editable": is_editable(d.date)})
     return out
 
 
 @router.get("/days/{day}")
 def get_day(day: date, session: Session = Depends(get_session)):
     obj = session.query(m.Day).filter_by(date=day).first()
+    lock = {"editable": is_editable(day), "deadline": str(deadline(day))}
     if obj is None:
         return {"day": {"id": None, "date": str(day)}, "intentions": [], "activities": [], "reflections": [],
                 "media": [], "summary": {"n_intentions": 0, "n_done": 0, "n_reviewed": 0, "completion_rate": None,
-                                         "planned_minutes": 0, "actual_minutes": 0}}
-    return day_service.day_detail(session, obj)
+                                         "planned_minutes": 0, "actual_minutes": 0}, **lock}
+    return {**day_service.day_detail(session, obj), **lock}
 
 
 @router.patch("/days/{day}")
 def update_day(day: date, body: DayMetrics, session: Session = Depends(get_session)):
+    ensure_editable(day)
     obj = day_service.get_or_create(session, day)
     day_service.apply_metrics(obj, body)
     session.commit()
@@ -90,6 +96,7 @@ def update_day(day: date, body: DayMetrics, session: Session = Depends(get_sessi
 
 @router.post("/intentions", response_model=IntentionOut)
 def add_intention(body: IntentionIn, day: date | None = None, session: Session = Depends(get_session)):
+    ensure_editable(day)
     d = day_service.get_or_create(session, day)
     it = m.Intention(day_id=d.id, position=len(d.intentions), **body.model_dump())
     session.add(it)
@@ -102,6 +109,7 @@ def update_intention(intention_id: int, body: IntentionUpdate, session: Session 
     it = session.get(m.Intention, intention_id)
     if it is None:
         raise not_found("Intention")
+    ensure_day_id_editable(session, it.day_id)
     data = body.model_dump(exclude_unset=True)
     if "status" in data and data["status"] not in INTENTION_STATUSES:
         raise HTTPException(400, "Statut inconnu")
@@ -118,6 +126,7 @@ def delete_intention(intention_id: int, session: Session = Depends(get_session))
     it = session.get(m.Intention, intention_id)
     if it is None:
         raise not_found("Intention")
+    ensure_day_id_editable(session, it.day_id)
     session.delete(it)
     session.commit()
     return {"ok": True}
@@ -141,6 +150,7 @@ def list_activities(start: date | None = None, end: date | None = None, dimensio
 
 @router.post("/activities", response_model=ActivityOut)
 def add_activity(body: ActivityIn, session: Session = Depends(get_session)):
+    ensure_editable(body.date)
     return day_service.add_activity(session, body)
 
 
@@ -149,6 +159,7 @@ def delete_activity(activity_id: int, session: Session = Depends(get_session)):
     act = session.get(m.Activity, activity_id)
     if act is None:
         raise not_found("Activité")
+    ensure_day_id_editable(session, act.day_id)
     session.delete(act)
     session.commit()
     return {"ok": True}
@@ -167,6 +178,7 @@ def list_reflections(kind: str | None = None, dimension: str | None = None, limi
 
 @router.post("/reflections", response_model=ReflectionOut)
 def add_reflection(body: ReflectionIn, session: Session = Depends(get_session)):
+    ensure_editable(body.date)
     d = day_service.get_or_create(session, body.date)
     ref = m.Reflection(day_id=d.id, **body.model_dump(exclude={"date"}))
     session.add(ref)
@@ -179,6 +191,7 @@ def delete_reflection(reflection_id: int, session: Session = Depends(get_session
     ref = session.get(m.Reflection, reflection_id)
     if ref is None:
         raise not_found("Réflexion")
+    ensure_day_id_editable(session, ref.day_id)
     session.delete(ref)
     session.commit()
     return {"ok": True}

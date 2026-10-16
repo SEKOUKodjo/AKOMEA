@@ -12,13 +12,14 @@ from ai.transcription import whisper_local
 from .. import models as m
 from ..schemas import MediaOut, MediaUpdate
 from ..services import media as media_service
-from .deps import get_session, not_found
+from .deps import ensure_day_id_editable, ensure_editable, get_session, not_found
 
 router = APIRouter(tags=["multimedia"])
 
 
 def _upload(background: BackgroundTasks, session: Session, file: UploadFile, day: date | None, moment: str | None,
             dimension: str | None, caption: str | None, kind: str | None, transcribe: bool) -> m.Media:
+    ensure_editable(day)
     try:
         media = media_service.save_upload(session, file, day=day or date.today(), moment=moment,
                                           dimension=dimension or None, caption=caption or None, kind=kind)
@@ -108,6 +109,8 @@ def delete_media(media_id: int, delete_file: bool = False, session: Session = De
     media = session.get(m.Media, media_id)
     if media is None:
         raise not_found("Média")
+    if media.day_id:
+        ensure_day_id_editable(session, media.day_id)
     media_service.delete_media(session, media, delete_file)
     return {"ok": True}
 

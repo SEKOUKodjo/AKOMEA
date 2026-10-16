@@ -7,16 +7,17 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, Header
+from fastapi import Depends, FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from . import icons
-from .api import daily, media, planning, statistics
-from .api.deps import require_pin
-from .config import BASE_DIR, settings
+from .api import account, daily, media, planning, statistics
+from .api.deps import current_user
+from .config import BASE_DIR
 from .db import init_engine
+from .services import profile
 
 FRONTEND = BASE_DIR / "frontend"
 
@@ -35,20 +36,23 @@ app = FastAPI(
 )
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 
-protected = [Depends(require_pin)]
+# Toutes les données exigent une session ouverte ; seules la connexion et la photo sont publiques.
+protected = [Depends(current_user)]
 for module in (daily, media, planning, statistics):
     app.include_router(module.router, prefix="/api", dependencies=protected)
+app.include_router(account.router)
 
 
 @app.get("/api/ping", tags=["systeme"])
 def ping():
-    return {"ok": True, "pin_required": bool(settings.pin)}
-
-
-@app.get("/api/auth/check", tags=["systeme"])
-def auth_check(x_pei_pin: str | None = Header(default=None)):
-    require_pin(x_pei_pin)
     return {"ok": True}
+
+
+@app.get("/profil/photo", include_in_schema=False)
+def profile_photo():
+    """Photo affichée sur la page de connexion et dans l'en tête (publique, comme sur un écran de verrouillage)."""
+    data, mime = profile.photo_bytes()
+    return Response(data, media_type=mime, headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/icons.svg", include_in_schema=False)

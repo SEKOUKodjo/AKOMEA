@@ -65,9 +65,46 @@ Autres commandes :
 | `python run.py backup --to /media/cle_usb` | sauvegarde (base cohérente et médias) en archive zip |
 | `python run.py export --days 90` | export Excel des données et des indicateurs (`--start`, `--end`, `--out`) |
 | `python run.py reindex` | reconstruit l'index de la mémoire |
-| `PEI_PIN=4821 python run.py all` | protège l'accès par un code PIN |
+| `python run.py motdepasse` | réinitialise le mot de passe oublié (sur le PC) |
+| `PEI_DELAI_SAISIE_JOURS=4` | délai pour rattraper une journée passée (4 jours par défaut) |
 | `python run.py serve --cert cert.pem --key key.pem` | HTTPS local, active l'enregistrement direct au micro |
 | `python -m pytest` | tests automatisés |
+
+## Compte, connexion et photo
+
+Au premier lancement, l'application demande de **créer ton compte** (prénom, identifiant, mot de passe).
+Ensuite, chaque appareil doit se connecter ; la session reste ouverte 30 jours. Toutes les données
+exigent une connexion, y compris dans le tableau de bord.
+
+* Le mot de passe n'est jamais stocké : seule son empreinte (PBKDF2, 240 000 itérations) est en base.
+* Après 5 essais ratés, la connexion est bloquée 5 minutes.
+* Mot de passe oublié : sur le PC, `python run.py motdepasse`.
+
+**Ta photo** s'affiche sur la page de connexion et en haut de l'application, à la place du drapeau.
+Une silhouette est fournie par défaut. Pour mettre ta propre photo :
+
+* depuis l'application : **Plus**, **Réglages**, puis **Changer la photo** (recadrée automatiquement en carré) ;
+* ou à la main : dépose un fichier `photo.jpg` (ou `.png`, `.webp`) dans `data/profil/`.
+
+## Rattrapage d'une journée et régularité de saisie
+
+Une journée se renseigne le jour même ou **jusqu'à 4 jours après**. Passé ce délai, elle est
+verrouillée : l'application et l'API refusent toute modification. Pendant le délai, un bandeau
+indique combien de jours il reste, et l'accueil liste les **journées à rattraper**.
+
+Chaque journée reçoit un statut, visible dans le Bilan, dans l'onglet **Saisie** du tableau de bord
+et dans l'export Excel :
+
+| Statut | Signification |
+|---|---|
+| Renseignée le jour même | première saisie faite le jour J |
+| Rattrapée plus tard | première saisie faite entre J+1 et J+4 |
+| Oubliée (verrouillée) | rien saisi et délai dépassé |
+| À rattraper | rien saisi, délai encore ouvert |
+
+Indicateurs : taux de journées renseignées le jour même, rattrapées et oubliées, délai moyen de
+rattrapage, bilans du soir oubliés, jours de la semaine les plus souvent oubliés, record de jours
+consécutifs renseignés à temps.
 
 ## Export Excel
 

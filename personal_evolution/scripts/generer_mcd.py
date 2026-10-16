@@ -48,6 +48,8 @@ ENTITIES = {
     "experiments": ("EXPERIENCE", "Expérience personnelle : hypothèse testée sur une période."),
     "people": ("PERSONNE", "Personne de l'entourage (famille, ami, mentor...)."),
     "interactions": ("ECHANGE", "Échange avec une personne : appel, visite, rencontre, message."),
+    "users": ("UTILISATEUR", "Compte local protégeant l'accès aux données (mot de passe haché)."),
+    "auth_sessions": ("SESSION_CONNEXION", "Connexion ouverte sur un appareil (téléphone, PC), avec date d'expiration."),
 }
 
 # Description de chaque propriété (dictionnaire des données)
@@ -160,6 +162,17 @@ DESC = {
         "id": "Identifiant", "person_id": "Personne concernée", "date": "Date de l'échange",
         "kind": "appel, visite, message, rencontre, conversation", "note": "Note sur l'échange", "created_at": "Date de création",
     },
+    "users": {
+        "id": "Identifiant", "username": "Identifiant de connexion, unique", "display_name": "Prénom affiché",
+        "password_hash": "Empreinte PBKDF2 du mot de passe (jamais le mot de passe lui même)",
+        "failed_attempts": "Essais ratés consécutifs", "locked_until": "Connexion bloquée jusqu'à cette date",
+        "last_login_at": "Dernière connexion", "created_at": "Date de création du compte",
+    },
+    "auth_sessions": {
+        "id": "Identifiant", "user_id": "Compte connecté", "token_hash": "Empreinte SHA 256 du jeton de session",
+        "user_agent": "Navigateur ou appareil", "created_at": "Ouverture de la session",
+        "last_seen_at": "Dernière activité", "expires_at": "Expiration de la session",
+    },
 }
 
 
@@ -229,6 +242,9 @@ ASSOS = [
     Asso("ECHANGER", "people", "0,n", "interactions", "1,1", "interactions.person_id",
          "Une personne a zéro ou plusieurs échanges ; un échange concerne exactement une personne.",
          (475, 1830)),
+    Asso("OUVRIR", "users", "0,n", "auth_sessions", "1,1", "auth_sessions.user_id",
+         "Un utilisateur ouvre zéro ou plusieurs sessions (une par appareil) ; une session appartient à exactement un utilisateur.",
+         (2625, 1235)),
 ]
 
 # Position des entités sur le schéma (x, y du coin haut gauche)
@@ -237,6 +253,7 @@ POS = {
     "intentions": (1250, 40), "activities": (1250, 520), "reflections": (1250, 900), "media": (1250, 1230),
     "predictions": (1880, 40), "sources": (1880, 640), "extractions": (2480, 640),
     "people": (40, 1720), "interactions": (620, 1720), "decisions": (1250, 1720), "experiments": (1880, 1720),
+    "users": (2480, 960), "auth_sessions": (2480, 1320),
 }
 BOX_W, HEAD_H, LINE_H, FONT = 290, 36, 22, 15
 # Points d'accroche imposés pour éviter qu'un lien traverse une entité
@@ -510,7 +527,7 @@ def build_sections() -> list[tuple]:
         "participation est facultative ou obligatoire, le maximum (1 ou n) dit si elle est unique ou multiple.",
         "Au niveau conceptuel il n'y a pas de clé étrangère : elles n'apparaissent qu'au passage au modèle logique (MLD).",
     ]))
-    S.append(("p", "Le MCD de PEI compte <b>15 entités</b> et <b>17 associations</b>. Il est organisé autour de deux "
+    S.append(("p", "Le MCD de PEI compte <b>17 entités</b> et <b>18 associations</b>. Il est organisé autour de deux "
                    "pivots : <b>JOUR</b>, qui donne la dimension longitudinale (tout se rattache à une date), et "
                    "<b>SOURCE</b>, qui garantit la traçabilité (toute donnée structurée remonte à sa donnée brute)."))
 
@@ -529,6 +546,8 @@ def build_sections() -> list[tuple]:
         "<b>La traçabilité et l'intelligence</b> : SOURCE, EXTRACTION, PREDICTION. Elles conservent la donnée "
         "brute, ce que l'IA en a tiré, ce que l'utilisateur a validé, et ce que les modèles ont prédit.",
         "<b>Les dimensions longues</b> : OBJECTIF, COMPETENCE, EVALUATION, DECISION, EXPERIENCE, PERSONNE, ECHANGE.",
+        "<b>La sécurité</b> : UTILISATEUR et SESSION_CONNEXION protègent l'accès. Le mot de passe et les jetons ne sont "
+        "conservés que sous forme d'empreinte.",
     ]))
 
     S.append(("h1", "4. Les associations et leurs cardinalités"))
@@ -610,7 +629,7 @@ def build_sections() -> list[tuple]:
         ref = a.a if a.fk.split(".")[0] == a.b else a.b
         r[2] = ref
     S.append(("table", ["Association", "Clé étrangère créée", "Référence", "Nature"], fk_rows, [0.2, 0.35, 0.25, 0.2]))
-    S.append(("p", "Comportement à la suppression : les clés obligatoires vers JOUR, SOURCE, COMPETENCE et PERSONNE sont "
+    S.append(("p", "Comportement à la suppression : les clés obligatoires vers JOUR, SOURCE, COMPETENCE, PERSONNE et UTILISATEUR sont "
                    "en suppression en cascade ; les clés facultatives sont mises à vide (SET NULL), afin de ne jamais "
                    "perdre une donnée d'origine."))
 
@@ -716,7 +735,7 @@ def to_pdf(sections, path: Path) -> None:
              Paragraph("Méthode Merise : entités, associations, cardinalités, dictionnaire des données et MLD",
                        ParagraphStyle("s3", parent=body, alignment=TA_CENTER, fontSize=11)),
              Spacer(1, 6 * cm),
-             Paragraph(f"15 entités, 17 associations, {sum(len(columns(t)) for t in ENTITIES)} propriétés<br/>"
+             Paragraph(f"17 entités, 18 associations, {sum(len(columns(t)) for t in ENTITIES)} propriétés<br/>"
                        f"Version du {date.today():%d/%m/%Y}",
                        ParagraphStyle("s4", parent=body, alignment=TA_CENTER, textColor=colors.HexColor(MUTED))),
              PageBreak()]

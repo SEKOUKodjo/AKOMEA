@@ -331,3 +331,36 @@ class Prediction(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
 
     __table_args__ = (UniqueConstraint("target", "subject_type", "subject_id", name="uq_prediction_subject"),)
+
+
+class User(Base):
+    """Compte local. Le mot de passe n'est jamais stocké, seulement son empreinte PBKDF2."""
+
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    username: Mapped[str] = mapped_column(String(60), unique=True)
+    display_name: Mapped[str | None] = mapped_column(String(120))
+    password_hash: Mapped[str] = mapped_column(String(200))
+    failed_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
+
+    sessions: Mapped[list[AuthSession]] = relationship(back_populates="user", cascade="all, delete-orphan")
+
+
+class AuthSession(Base):
+    """Session de connexion. Seule l'empreinte SHA 256 du jeton est conservée."""
+
+    __tablename__ = "auth_sessions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    user_agent: Mapped[str | None] = mapped_column(String(300))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=now)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+
+    user: Mapped[User] = relationship(back_populates="sessions")

@@ -6,7 +6,7 @@ guide, a été préparé pour cela.
 
 ## Ce que contient le script
 
-* Les 15 tables de PEI, au format MySQL.
+* Les 17 tables de PEI, au format MySQL.
 * Une clé étrangère par association du MCD. Chaque clé porte le nom de l'association
   (`FK_PREVOIR`, `FK_DECOMPOSER`, `FK_CONCRETISER`...), et WinDesign l'utilise comme nom
   de l'association.
@@ -66,8 +66,10 @@ document `docs/MCD.pdf`, renommer les entités ainsi :
 | experiments | EXPERIENCE |
 | people | PERSONNE |
 | interactions | ECHANGE |
+| users | UTILISATEUR |
+| auth_sessions | SESSION_CONNEXION |
 
-Vérifier ensuite les 17 associations et leurs cardinalités :
+Vérifier ensuite les 18 associations et leurs cardinalités :
 
 | Association | Entité A | Card. A | Entité B | Card. B |
 |---|---|---|---|---|
@@ -88,6 +90,7 @@ Vérifier ensuite les 17 associations et leurs cardinalités :
 | EXERCER | COMPETENCE | 0,n | ACTIVITE | 0,1 |
 | EVALUER | COMPETENCE | 0,n | EVALUATION | 1,1 |
 | ECHANGER | PERSONNE | 0,n | ECHANGE | 1,1 |
+| OUVRIR | UTILISATEUR | 0,n | SESSION_CONNEXION | 1,1 |
 
 Points d'attention :
 

@@ -2,13 +2,13 @@
 
 ## Rapport explicatif
 
-*Version 1.0, 10/10/2026*
+*Version 1.0, 16/10/2026*
 
 ## 1. Résumé
 
 Personal Evolution Intelligence (PEI) est un système personnel, entièrement local, qui transforme le vécu quotidien en données structurées afin d'observer objectivement son évolution. Il ne se limite pas à une liste de tâches : il enregistre ce que l'on voulait faire (intention), ce que l'on a réellement fait (action) et ce que cela a produit (résultat), puis en tire des statistiques, des tendances, des estimations et des recommandations toujours justifiées par les données.
 
-La version livrée couvre les huit phases du cahier des charges dans une première version fonctionnelle : socle FastAPI et SQLite, interface téléphone installable (PWA), multimédia avec transcription locale, extraction automatique en français, tableau de bord Shiny for Python, analyse statistique longitudinale, modèles prédictifs et recommandations. L'ensemble représente environ 5 600 lignes de Python et 1 300 lignes d'interface web, validées par 19 tests automatisés.
+La version livrée couvre les huit phases du cahier des charges dans une première version fonctionnelle : socle FastAPI et SQLite, interface téléphone installable (PWA), multimédia avec transcription locale, extraction automatique en français, tableau de bord Shiny for Python, analyse statistique longitudinale, modèles prédictifs et recommandations. L'ensemble représente environ 5 600 lignes de Python et 1 300 lignes d'interface web, validées par 25 tests automatisés.
 
 | Élément | Choix retenu |
 |---|---|
@@ -122,6 +122,7 @@ Le tableau de bord Shiny et l'API utilisent exactement les mêmes fonctions d'an
 | Experiment | Hypothèse, intervention, indicateur, période |
 | Person, Interaction | Relations et échanges, rythme de contact souhaité |
 | Prediction | Prédiction émise, intervalle, modèle, valeur réelle observée ensuite |
+| User, AuthSession | Compte local (mot de passe haché) et sessions de connexion par appareil |
 
 Le Modèle Conceptuel de Données complet (schéma Merise, associations, cardinalités, dictionnaire des données et MLD) est présenté dans le document docs/MCD.pdf.
 
@@ -261,7 +262,11 @@ Le tableau de bord, exclusivement analytique, propose huit onglets avec un filtr
 
 *Onglet Prédiction : simulation d'un rythme de travail*
 
-### 12.1 Export Excel
+### 12.1 Rattrapage et régularité de saisie
+
+Une journée se renseigne le jour même ou jusqu'à 4 jours après (réglable par PEI_DELAI_SAISIE_JOURS). Au delà, elle est verrouillée : le serveur refuse toute modification, quelle que soit l'interface utilisée. Chaque journée reçoit un statut (renseignée le jour même, rattrapée, oubliée, à rattraper), déduit de la date de la première saisie. Le tableau de bord (onglet Saisie), le bilan du téléphone et l'export Excel en tirent des indicateurs : part des journées oubliées, délai moyen de rattrapage, bilans du soir manquants et jours de la semaine les plus souvent oubliés. Sur la démonstration, 78 % des journées sont renseignées le jour même, 13 % rattrapées et 9 % oubliées.
+
+### 12.2 Export Excel
 
 Les données et les indicateurs s'exportent dans un classeur Excel, depuis le téléphone (Plus, puis Export Excel), depuis le tableau de bord (bouton Exporter en Excel) ou en ligne de commande (python run.py export --days 90). La période est au choix. Les indicateurs sont des formules Excel qui pointent vers les données brutes du classeur : une correction faite dans Excel met à jour la synthèse. Seules les analyses statistiques (tests, corrélations, recommandations) sont des valeurs calculées par PEI, signalées comme telles.
 
@@ -289,7 +294,8 @@ Tout ce qui est écrit, transcrit ou validé est indexé. L'utilisateur peut che
 
 * Aucune donnée ne quitte le PC : pas de cloud, pas de service externe, pas de bibliothèque chargée depuis Internet.
 * Les données (data/, storage/, backups/) sont exclues du dépôt Git ; le code et les données sont séparés.
-* Code PIN facultatif (variable PEI_PIN) vérifié à chaque appel de l'API.
+* Compte personnel obligatoire : page de connexion avec photo de profil, mot de passe haché (PBKDF2, 240 000 itérations), session par cookie HttpOnly valable 30 jours, blocage de 5 minutes après 5 essais ratés.
+* Le tableau de bord exige la même connexion ; réinitialisation du mot de passe depuis le PC uniquement.
 * Sauvegarde cohérente de la base (API de sauvegarde SQLite) et des médias en archive zip, vers un disque externe ou une clé USB (python run.py backup --to ...).
 * HTTPS local possible pour autoriser l'enregistrement direct au micro depuis le navigateur du téléphone.
 
@@ -318,7 +324,7 @@ Toutes les icônes (plus de soixante) sont dessinées en SVG dans backend/icons.
 
 ## 17. Tests et validation
 
-19 tests automatisés (python -m pytest) couvrent l'extraction des durées et des exemples du cahier des charges, le cycle matin et soir par l'API, la provenance (statut « corrigé »), la mise à jour d'une intention par une activité, la conservation de l'audio original, la hiérarchie des objectifs, les compétences, les statistiques, la prédiction, la simulation, la mémoire, la sauvegarde, le code PIN et l'interface. Résultat : 19 tests réussis.
+25 tests automatisés (python -m pytest) couvrent l'extraction des durées et des exemples du cahier des charges, le cycle matin et soir par l'API, la provenance (statut « corrigé »), la mise à jour d'une intention par une activité, la conservation de l'audio original, la hiérarchie des objectifs, les compétences, les statistiques, la prédiction, la simulation, la mémoire, la sauvegarde, le code PIN et l'interface, l'export Excel, la connexion (création du compte, blocage après 5 essais, photo de profil), le verrouillage des journées après 4 jours et le calcul des statuts de saisie. Résultat : 25 tests réussis.
 
 Une base de démonstration de 150 jours (python run.py demo) a permis de vérifier l'ensemble :
 

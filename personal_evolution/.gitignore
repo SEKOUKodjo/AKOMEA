@@ -8,3 +8,6 @@ storage/**
 backups/
 *.pem
 *.key
+
+# Photo de profil personnelle
+data/profil/photo.*

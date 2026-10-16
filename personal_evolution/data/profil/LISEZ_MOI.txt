@@ -1,0 +1,7 @@
+Photo de profil de PEI
+
+Dépose ici ta photo sous le nom photo.jpg (ou photo.png, photo.webp).
+Elle remplace la silhouette par défaut sur la page de connexion et en haut de l'application.
+Tu peux aussi la changer depuis l'application : Plus, Réglages, Changer la photo.
+
+Ta photo n'est jamais ajoutée au dépôt Git (voir .gitignore).

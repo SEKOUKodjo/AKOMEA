@@ -50,7 +50,7 @@ def build() -> str:
         "-- Personal Evolution Intelligence (PEI)",
         "-- Script SQL pour la rétroconception dans WinDesign (SGBD cible : MySQL)",
         f"-- Généré le {date.today():%d/%m/%Y} à partir de backend/models.py",
-        "-- 15 tables, 17 associations. Chaque clé étrangère porte le nom de l'association du MCD.",
+        "-- 17 tables, 18 associations. Chaque clé étrangère porte le nom de l'association du MCD.",
         "",
         "SET FOREIGN_KEY_CHECKS = 0;",
         "",

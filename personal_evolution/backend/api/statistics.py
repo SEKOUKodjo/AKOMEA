@@ -92,6 +92,13 @@ def stats_compare(a_start: date, a_end: date, b_start: date, b_end: date, sessio
     return analytics.compare_periods(session, (a_start, a_end), (b_start, b_end))
 
 
+@router.get("/statistics/saisie", tags=["statistiques"])
+def stats_entry(days: int | None = None, start: date | None = None, end: date | None = None,
+                session: Session = Depends(get_session)):
+    """Régularité de saisie : jours renseignés le jour même, rattrapés, oubliés, à rattraper."""
+    return analytics.entry_discipline(session, *_period(days, start, end))
+
+
 @router.get("/export/excel", tags=["export"])
 def export_excel_file(days: int | None = None, start: date | None = None, end: date | None = None,
                       session: Session = Depends(get_session)):
@@ -224,7 +231,7 @@ def system_info(session: Session = Depends(get_session)):
         "application": "Personal Evolution Intelligence", "version": "1.0.0",
         "database": str(settings.database_path), "database_mb": round(db_size / 1e6, 2),
         "storage": str(settings.storage_dir), "counts": counts, "local_ips": local_ips(),
-        "transcription_engine": whisper_local.available_engine(), "pin_enabled": bool(settings.pin),
+        "transcription_engine": whisper_local.available_engine(), "backfill_days": settings.backfill_days,
         "dashboard_port": settings.dashboard_port, "python": platform.python_version(),
     }
 

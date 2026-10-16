@@ -231,7 +231,8 @@ def build_workbook(session: Session, start: date | None = None, end: date | None
         Col("energy", "Énergie", 9, FMT_INT), Col("motivation", "Motivation", 10, FMT_INT), Col("mood", "Humeur", 9, FMT_INT),
         Col("stress", "Stress", 9, FMT_INT), Col("screen_minutes", "Écran (min)", 10, FMT_INT),
         Col("steps", "Pas", 10, "#,##0"), Col("water_liters", "Eau (l)", 9, FMT_DEC),
-        Col("n_ref", "Réflexions", 10, FMT_INT), Col("highlight", "Moment marquant", 40, wrap=True),
+        Col("n_ref", "Réflexions", 10, FMT_INT), Col("entry", "Saisie", 22), Col("entry_delay", "Délai de saisie (jours)", 11, FMT_INT),
+        Col("highlight", "Moment marquant", 40, wrap=True),
     ]
     tq = Table(ws_q, qcols)
     I, A, R = ti, ta, tr
@@ -252,6 +253,8 @@ def build_workbook(session: Session, start: date | None = None, end: date | None
             out[f"d_{k}"] = f'=SUMIFS({A.rng("min")},{A.rng("date")},{d},{A.rng("dim")},"{v["label"]}")'
         return out
 
+    entry = analytics.entry_discipline(session, p_start, p_end)
+    entry_by_day = {e["date"]: e for e in entry["days"]}
     for ts, row in daily.iterrows():
         r = tq.first + tq.n
         vals = {"date": ts.date(), "logged": "Oui" if row["logged"] else "Non", **q_formulas(r)}
@@ -259,6 +262,9 @@ def build_workbook(session: Session, start: date | None = None, end: date | None
                   "water_liters"]:
             vals[k] = _clean(row.get(k))
         vals["highlight"] = _clean(highlights.get(ts))
+        ent = entry_by_day.get(str(ts.date()))
+        if ent:
+            vals["entry"], vals["entry_delay"] = ent["status_label"], ent["delay"]
         tq.add(vals)
     tq.finish()
     Q = tq
@@ -512,6 +518,12 @@ def build_workbook(session: Session, start: date | None = None, end: date | None
         ("Humeur moyenne (sur 5)", f'=IFERROR(AVERAGE({Q.rng("mood")}),"")', "0.00"),
         ("Réflexions écrites", f"=COUNTA({R.rng('content')})", FMT_INT),
         ("Plus grand nombre d'heures en une semaine", f"=MAX({tw.rng('hours')})", FMT_DEC),
+        ("Journées renseignées le jour même", f'=COUNTIFS({Q.rng("entry")},"Renseignée le jour même")', FMT_INT),
+        ("Journées rattrapées plus tard", f'=COUNTIFS({Q.rng("entry")},"Rattrapée plus tard")', FMT_INT),
+        ("Journées oubliées (délai dépassé)", f'=COUNTIFS({Q.rng("entry")},"Oubliée (verrouillée)")', FMT_INT),
+        ("Taux d'oubli le jour même", "=IFERROR((B21+B22)/(B20+B21+B22),\"\")", FMT_PCT),
+        ("Délai moyen de rattrapage (jours)",
+         f'=IFERROR(AVERAGEIFS({Q.rng("entry_delay")},{Q.rng("entry")},"Rattrapée plus tard"),"")', FMT_DEC),
     ]
     for k, (label, formula, fmt) in enumerate(kpis):
         r = 5 + k

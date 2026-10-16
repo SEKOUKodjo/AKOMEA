@@ -10,16 +10,25 @@ from ai.nlp.extract import extract_intentions, extract_review, parse_minutes
 
 
 @pytest.fixture()
-def client(tmp_path, monkeypatch):
+def anon(tmp_path, monkeypatch):
+    """Client sans compte ni connexion."""
     from backend import config, db
 
     config.configure(data_dir=tmp_path, storage_dir=tmp_path / "storage", backup_dir=tmp_path / "backups",
-                     db_path=tmp_path / "test.db", pin=None)
+                     db_path=tmp_path / "test.db", backfill_days=4)
     db.init_engine()
     from backend.main import app
 
     with TestClient(app) as c:
         yield c
+
+
+@pytest.fixture()
+def client(anon):
+    """Client avec compte créé et session ouverte (cookie)."""
+    r = anon.post("/api/auth/setup", json={"username": "kodjo", "password": "Togo2026x", "display_name": "Kodjo"})
+    assert r.status_code == 200, r.text
+    return anon
 
 
 # Extraction en langage naturel
@@ -160,15 +169,114 @@ def test_backup(client):
     assert r["file"].endswith(".zip")
 
 
-def test_pin_protection(client):
-    from backend import config
+def test_authentication(anon):
+    st = anon.get("/api/auth/status").json()
+    assert st == {"configured": False, "authenticated": False, "user": None, "backfill_days": 4}
+    assert anon.get("/api/goals").status_code == 401  # aucune donnée sans connexion
+    assert anon.get("/profil/photo").status_code == 200  # la photo reste visible sur la page de connexion
+    assert anon.post("/api/auth/setup", json={"username": "kodjo", "password": "court"}).status_code == 422
+    assert anon.post("/api/auth/setup", json={"username": "kodjo", "password": "seulementdeslettres"}).status_code == 400
+    assert anon.post("/api/auth/setup", json={"username": "kodjo", "password": "Togo2026x"}).status_code == 200
+    assert anon.post("/api/auth/setup", json={"username": "autre", "password": "Togo2026x"}).status_code == 409
+    assert anon.get("/api/goals").status_code == 200
+    anon.post("/api/auth/logout")
+    assert anon.get("/api/goals").status_code == 401
+    assert anon.post("/api/auth/login", json={"username": "kodjo", "password": "faux"}).status_code == 401
+    r = anon.post("/api/auth/login", json={"username": "kodjo", "password": "Togo2026x"})
+    assert r.status_code == 200 and "pei_session" in r.cookies
+    assert anon.get("/api/goals").status_code == 200
+    # Le mot de passe n'est jamais stocké en clair.
+    from backend import models as m
+    from backend.db import session_scope
 
-    config.settings.pin = "1234"
-    try:
-        assert client.get("/api/goals").status_code == 401
-        assert client.get("/api/goals", headers={"X-PEI-PIN": "1234"}).status_code == 200
-    finally:
-        config.settings.pin = None
+    with session_scope() as s:
+        user = s.query(m.User).one()
+        assert "Togo2026x" not in user.password_hash and user.password_hash.startswith("pbkdf2_sha256$")
+
+
+def test_login_lockout(client):
+    client.post("/api/auth/logout")
+    for _ in range(5):
+        assert client.post("/api/auth/login", json={"username": "kodjo", "password": "mauvais1"}).status_code == 401
+    r = client.post("/api/auth/login", json={"username": "kodjo", "password": "Togo2026x"})
+    assert r.status_code == 429  # bloqué quelques minutes, même avec le bon mot de passe
+
+
+def test_profile_photo(client):
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGB", (900, 600), "#D21034").save(buf, "PNG")
+    r = client.post("/api/profil/photo", files={"file": ("moi.png", buf.getvalue(), "image/png")})
+    assert r.status_code == 200
+    img = Image.open(io.BytesIO(client.get("/profil/photo").content))
+    assert img.size == (600, 600)  # recadrée en carré
+    assert client.post("/api/profil/photo", files={"file": ("x.png", b"pas une image", "image/png")}).status_code == 400
+    client.delete("/api/profil/photo")
+    assert client.get("/profil/photo").headers["content-type"] == "image/png"  # photo par défaut
+
+
+def test_backfill_window(client):
+    today = date.today()
+    for k in range(0, 5):  # aujourd'hui et jusqu'à 4 jours après : autorisé
+        d = str(today - timedelta(days=k))
+        assert client.post("/api/reflections", json={"content": "note", "date": d}).status_code == 200, k
+    old = str(today - timedelta(days=5))
+    r = client.post("/api/morning", json={"date": old, "intentions": [{"description": "Lire"}]})
+    assert r.status_code == 403 and "verrouillée" in r.json()["detail"]
+    assert client.post("/api/evening", json={"date": old}).status_code == 403
+    assert client.post("/api/activities", json={"description": "x", "date": old}).status_code == 403
+    assert client.patch(f"/api/days/{old}", json={"mood": 3}).status_code == 403
+    assert client.post("/api/reflections", json={"content": "x", "date": str(today + timedelta(days=1))}).status_code == 403
+    day = client.get(f"/api/days/{old}").json()
+    assert day["editable"] is False and day["deadline"] == str(today - timedelta(days=1))
+    assert client.get(f"/api/days/{today}").json()["editable"] is True
+
+
+def test_locked_day_cannot_be_modified_by_id(client):
+    from backend import models as m
+    from backend.db import session_scope
+
+    old = date.today() - timedelta(days=10)
+    with session_scope() as s:
+        d = m.Day(date=old)
+        s.add(d)
+        s.flush()
+        it = m.Intention(day_id=d.id, description="Ancienne intention")
+        s.add(it)
+        s.flush()
+        iid = it.id
+    assert client.patch(f"/api/intentions/{iid}", json={"status": "realise"}).status_code == 403
+    assert client.delete(f"/api/intentions/{iid}").status_code == 403
+
+
+def test_entry_discipline():
+    """Statut de saisie : le jour même, rattrapée, oubliée, à rattraper."""
+    from datetime import datetime
+
+    from backend import models as m
+    from backend.db import init_engine, session_scope
+    from backend.services import analytics
+
+    init_engine("sqlite://")
+    today = date(2026, 10, 16)
+    with session_scope() as s:
+        def day(d, entered):
+            rec = m.Day(date=d, mood=3, created_at=datetime.combine(entered, datetime.min.time()))
+            s.add(rec)
+        day(date(2026, 10, 1), date(2026, 10, 1))   # le jour même
+        day(date(2026, 10, 2), date(2026, 10, 5))   # rattrapée 3 jours après
+        # 3 octobre : rien, délai dépassé -> oubliée
+        day(date(2026, 10, 4), date(2026, 10, 4))
+        # 14 et 15 octobre : rien, encore rattrapables
+        s.flush()
+        r = analytics.entry_discipline(s, date(2026, 10, 1), today, today=today)
+    status = {d["date"]: d["status"] for d in r["days"]}
+    assert status["2026-10-01"] == "a_temps" and status["2026-10-02"] == "rattrapee"
+    assert status["2026-10-03"] == "oubliee" and status["2026-10-12"] == "a_rattraper"
+    assert status["2026-10-11"] == "oubliee" and status["2026-10-16"] == "en_cours"
+    assert r["late"] == 1 and r["mean_delay"] == 3
+    assert [p["date"] for p in r["pending"]][-1] == "2026-10-15"
 
 
 def test_frontend_and_icons(client):

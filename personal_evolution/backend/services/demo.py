@@ -73,7 +73,7 @@ def seed(session: Session, n_days: int = 150, seed_value: int = 42) -> dict:
     n_int = 0
     for k in range(n_days):
         d = start + timedelta(days=k)
-        if rng.random() < 0.08:  # quelques jours sans saisie
+        if rng.random() < 0.08 or k == n_days - 3:  # quelques jours sans saisie, dont un encore rattrapable
             continue
         sleep = round(min(9.5, max(4.5, rng.gauss(7, 1.0))), 1)
         energy = int(min(5, max(1, round(2 + (sleep - 5.5) * 0.7 + rng.gauss(0, 0.7)))))
@@ -135,8 +135,6 @@ def seed(session: Session, n_days: int = 150, seed_value: int = 42) -> dict:
             session.add(m.Reflection(day_id=day.id, kind="passage", dimension="spirituel", content=verse, reference=ref))
         if rng.random() < 0.2:
             session.add(m.Reflection(day_id=day.id, kind="gratitude", content="Reconnaissant pour la santé et la famille."))
-        day.morning_done_at = m.now()
-        day.evening_done_at = m.now()
 
     for i, (name, skill) in enumerate(skills.items()):
         level = 2.0 + 0.3 * i
@@ -166,5 +164,39 @@ def seed(session: Session, n_days: int = 150, seed_value: int = 42) -> dict:
         session.add(m.Interaction(person_id=mom.id, date=start + timedelta(days=k), kind="appel"))
     session.add(m.Interaction(person_id=mentor.id, date=today - timedelta(days=45), kind="rencontre",
                               note="Conseils sur le portfolio"))
+    session.flush()
+    _simulate_entry_times(session, start, today, random.Random(seed_value + 1))
     session.commit()
     return {"days": n_days, "intentions": n_int}
+
+
+def _simulate_entry_times(session: Session, start: date, today: date, rng: random.Random) -> None:
+    """Horodatages réalistes : la plupart des journées saisies le jour même, certaines rattrapées
+    jusqu'à 4 jours plus tard (plus souvent le week end), quelques bilans du soir oubliés."""
+    from datetime import datetime, time
+
+    for day in session.query(m.Day).filter(m.Day.date >= start).all():
+        d = day.date
+        weekend = d.weekday() >= 5
+        late_p = 0.25 if weekend else 0.09
+        delay = rng.choice([1, 1, 1, 2, 2, 3, 4]) if (rng.random() < late_p and (today - d).days >= 4) else 0
+        entry_day = d + timedelta(days=delay)
+        morning = datetime.combine(entry_day, time(7, rng.randint(0, 50)) if delay == 0 else time(20, rng.randint(0, 50)))
+        evening = datetime.combine(entry_day, time(21, rng.randint(0, 55)))
+        forgot_evening = bool(day.intentions) and rng.random() < (0.12 if d.weekday() == 4 else 0.05) and (today - d).days > 4
+        day.created_at = day.updated_at = morning
+        day.morning_done_at = morning
+        day.evening_done_at = None if forgot_evening else evening
+        for it in day.intentions:
+            it.created_at = morning
+            if forgot_evening:
+                it.status, it.actual_minutes, it.result, it.reason, it.reviewed_at = "prevu", None, None, None, None
+            else:
+                it.reviewed_at = evening
+        for act in list(day.activities):
+            if forgot_evening and act.intention_id:
+                session.delete(act)
+            else:
+                act.created_at = evening
+        for ref in day.reflections:
+            ref.created_at = evening

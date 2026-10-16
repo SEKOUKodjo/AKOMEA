@@ -23,8 +23,10 @@ class Settings:
     storage_dir: Path = field(default_factory=lambda: _path("PEI_STORAGE_DIR", BASE_DIR / "storage"))
     backup_dir: Path = field(default_factory=lambda: _path("PEI_BACKUP_DIR", BASE_DIR / "backups"))
     db_path: Path | None = field(default_factory=lambda: _path("PEI_DB_PATH", Path()) if os.environ.get("PEI_DB_PATH") else None)
-    # Code PIN facultatif. Vide = pas d'authentification (réseau local de confiance).
-    pin: str | None = field(default_factory=lambda: os.environ.get("PEI_PIN") or None)
+    # Durée de validité d'une connexion, en jours.
+    session_days: int = field(default_factory=lambda: int(os.environ.get("PEI_SESSION_JOURS", "30")))
+    # Une journée passée ne peut être renseignée que jusqu'à N jours après (4 par défaut).
+    backfill_days: int = field(default_factory=lambda: int(os.environ.get("PEI_DELAI_SAISIE_JOURS", "4")))
     whisper_model: str = field(default_factory=lambda: os.environ.get("PEI_WHISPER_MODEL", "small"))
     whisper_language: str = field(default_factory=lambda: os.environ.get("PEI_WHISPER_LANG", "fr"))
     dashboard_port: int = field(default_factory=lambda: int(os.environ.get("PEI_DASHBOARD_PORT", "8001")))
@@ -38,6 +40,11 @@ class Settings:
     def database_url(self) -> str:
         return f"sqlite:///{self.database_path}"
 
+    @property
+    def profile_dir(self) -> Path:
+        """Dossier de la photo de profil (remplaçable par l'utilisateur)."""
+        return self.data_dir / "profil"
+
     def media_dir(self, kind: str) -> Path:
         folder = {"audio": "audio", "video": "video", "image": "images"}.get(kind, "documents")
         path = self.storage_dir / folder
@@ -45,7 +52,7 @@ class Settings:
         return path
 
     def ensure_dirs(self) -> None:
-        for p in (self.data_dir, self.storage_dir, self.backup_dir, self.database_path.parent):
+        for p in (self.data_dir, self.storage_dir, self.backup_dir, self.database_path.parent, self.profile_dir):
             p.mkdir(parents=True, exist_ok=True)
         for kind in ("audio", "video", "image", "document"):
             self.media_dir(kind)

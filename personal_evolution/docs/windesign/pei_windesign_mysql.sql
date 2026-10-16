@@ -1,7 +1,7 @@
 -- Personal Evolution Intelligence (PEI)
 -- Script SQL pour la rétroconception dans WinDesign (SGBD cible : MySQL)
--- Généré le 10/10/2026 à partir de backend/models.py
--- 15 tables, 17 associations. Chaque clé étrangère porte le nom de l'association du MCD.
+-- Généré le 16/10/2026 à partir de backend/models.py
+-- 17 tables, 18 associations. Chaque clé étrangère porte le nom de l'association du MCD.
 
 SET FOREIGN_KEY_CHECKS = 0;
 
@@ -254,6 +254,33 @@ CREATE TABLE interactions (
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='ECHANGE : Échange avec une personne : appel, visite, rencontre, message.';
 
+-- Entité UTILISATEUR : Compte local protégeant l'accès aux données (mot de passe haché).
+CREATE TABLE users (
+  id INTEGER NOT NULL AUTO_INCREMENT COMMENT 'Identifiant',
+  username VARCHAR(60) NOT NULL COMMENT 'Identifiant de connexion, unique',
+  display_name VARCHAR(120) NULL COMMENT 'Prénom affiché',
+  password_hash VARCHAR(200) NOT NULL COMMENT 'Empreinte PBKDF2 du mot de passe (jamais le mot de passe lui même)',
+  failed_attempts INTEGER NOT NULL COMMENT 'Essais ratés consécutifs',
+  locked_until DATETIME NULL COMMENT 'Connexion bloquée jusqu''à cette date',
+  last_login_at DATETIME NULL COMMENT 'Dernière connexion',
+  created_at DATETIME NOT NULL COMMENT 'Date de création du compte',
+  PRIMARY KEY (id),
+  UNIQUE KEY UK_USERS_USERNAME (username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='UTILISATEUR : Compte local protégeant l''accès aux données (mot de passe haché).';
+
+-- Entité SESSION_CONNEXION : Connexion ouverte sur un appareil (téléphone, PC), avec date d'expiration.
+CREATE TABLE auth_sessions (
+  id INTEGER NOT NULL AUTO_INCREMENT COMMENT 'Identifiant',
+  user_id INTEGER NOT NULL COMMENT 'Compte connecté',
+  token_hash VARCHAR(64) NOT NULL COMMENT 'Empreinte SHA 256 du jeton de session',
+  user_agent VARCHAR(300) NULL COMMENT 'Navigateur ou appareil',
+  created_at DATETIME NOT NULL COMMENT 'Ouverture de la session',
+  last_seen_at DATETIME NOT NULL COMMENT 'Dernière activité',
+  expires_at DATETIME NOT NULL COMMENT 'Expiration de la session',
+  PRIMARY KEY (id),
+  UNIQUE KEY UK_AUTH_SESSIONS_TOKEN_HASH (token_hash)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='SESSION_CONNEXION : Connexion ouverte sur un appareil (téléphone, PC), avec date d''expiration.';
+
 -- Associations du MCD (une clé étrangère par association)
 -- DECOMPOSER : OBJECTIF (0,n) / OBJECTIF (0,1). Un objectif peut se décomposer en plusieurs sous objectifs ; un objectif a au plus un objectif parent.
 ALTER TABLE goals ADD CONSTRAINT FK_DECOMPOSER FOREIGN KEY (parent_id) REFERENCES goals (id) ON DELETE SET NULL;
@@ -307,5 +334,8 @@ ALTER TABLE skill_progress ADD CONSTRAINT FK_EVALUER FOREIGN KEY (skill_id) REFE
 
 -- ECHANGER : PERSONNE (0,n) / ECHANGE (1,1). Une personne a zéro ou plusieurs échanges ; un échange concerne exactement une personne.
 ALTER TABLE interactions ADD CONSTRAINT FK_ECHANGER FOREIGN KEY (person_id) REFERENCES people (id) ON DELETE CASCADE;
+
+-- OUVRIR : UTILISATEUR (0,n) / SESSION_CONNEXION (1,1). Un utilisateur ouvre zéro ou plusieurs sessions (une par appareil) ; une session appartient à exactement un utilisateur.
+ALTER TABLE auth_sessions ADD CONSTRAINT FK_OUVRIR FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE;
 
 SET FOREIGN_KEY_CHECKS = 1;

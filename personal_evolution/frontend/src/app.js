@@ -9,7 +9,8 @@ const app = $("#app");
 const S = {
   meta: null,
   date: todayISO(),
-  pin: safeGet("pei_pin") || "",
+  user: null,
+  backfill: 4,
   goals: [],
   categories: [],
   morningDraft: null,
@@ -60,11 +61,10 @@ function toast(msg, kind = "ok") {
 
 async function api(path, opts = {}) {
   const headers = { ...(opts.headers || {}) };
-  if (S.pin) headers["X-PEI-PIN"] = S.pin;
   let body = opts.body;
   if (body && !(body instanceof FormData)) { headers["Content-Type"] = "application/json"; body = JSON.stringify(body); }
   const res = await fetch(`/api${path}`, { method: opts.method || (body ? "POST" : "GET"), headers, body });
-  if (res.status === 401) { renderLock(); throw new Error("Code PIN requis"); }
+  if (res.status === 401 && !path.startsWith("/auth/")) { renderAuth("login"); throw new Error("AUTH"); }
   if (!res.ok) {
     let detail = res.statusText;
     try { const j = await res.json(); detail = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail); } catch (e) { /* corps vide */ }
@@ -111,10 +111,13 @@ function bindScales(root) {
 }
 function scaleVal(root, name) { const sc = $(`.scale[data-name="${name}"]`, root); return sc && sc.dataset.value ? Number(sc.dataset.value) : null; }
 
-function dateBar() {
-  return `<div class="datebar">
+function minEditableISO() { return shiftISO(todayISO(), -S.backfill); }
+function isEditableISO(iso) { return iso <= todayISO() && iso >= minEditableISO(); }
+
+function dateBar(entry = false) {
+  return `<div class="datebar" data-entry="${entry ? 1 : 0}">
     <button class="btn ghost icon" data-shift="-1" aria-label="Jour précédent">${icon("chevron_left")}</button>
-    <input type="date" id="day-input" value="${S.date}" max="${todayISO()}">
+    <input type="date" id="day-input" value="${S.date}" max="${todayISO()}" ${entry ? `min="${minEditableISO()}"` : ""}>
     <button class="btn ghost icon" data-shift="1" aria-label="Jour suivant">${icon("chevron_right")}</button>
   </div>`;
 }
@@ -122,10 +125,39 @@ function bindDateBar(rerender) {
   $$("[data-shift]").forEach((b) => b.addEventListener("click", () => {
     const next = shiftISO(S.date, Number(b.dataset.shift));
     if (next > todayISO()) return;
+    if (b.closest(".datebar").dataset.entry === "1" && next < minEditableISO()) {
+      toast(`Une journée ne peut être renseignée que ${S.backfill} jours après, au plus.`, "err"); return;
+    }
     S.date = next; rerender();
   }));
   const inp = $("#day-input");
   if (inp) inp.addEventListener("change", () => { if (inp.value) { S.date = inp.value; rerender(); } });
+}
+
+/* Délai de saisie : une journée se renseigne le jour même ou jusqu'à N jours après. */
+function lockBanner(day) {
+  if (day.editable === false) {
+    return `<div class="card accent-red lock-banner">${icon("lock")}<div class="grow"><b>Journée verrouillée</b>
+      <div class="small">Une journée ne peut être renseignée que jusqu'à ${S.backfill} jours après. Le délai pour le
+      ${esc(fmtDate(S.date, { day: "numeric", month: "long" }))} est passé (${esc(fmtDate(day.deadline, { day: "numeric", month: "long" }))}).</div>
+      <div class="btns"><button class="btn small" data-keep data-today>${icon("calendar", "sm")}Revenir à aujourd'hui</button></div></div></div>`;
+  }
+  if (S.date < todayISO()) {
+    const left = Math.round((new Date(day.deadline + "T12:00:00") - new Date(todayISO() + "T12:00:00")) / 86400000);
+    return `<div class="card accent-yellow lock-banner">${icon("clock")}<div class="grow"><b>Rattrapage</b>
+      <div class="small">Tu complètes une journée passée. ${left > 0 ? `Encore ${left} jour${left > 1 ? "s" : ""}` : "Dernier jour"} pour la
+      renseigner (jusqu'au ${esc(fmtDate(day.deadline, { day: "numeric", month: "long" }))}). Ce rattrapage apparaîtra dans ta régularité de saisie.</div></div></div>`;
+  }
+  return "";
+}
+
+function applyLock(day) {
+  $$("[data-today]").forEach((b) => (b.onclick = () => { S.date = todayISO(); route(); }));
+  if (day.editable !== false) return;
+  $$("main input, main textarea, main select, main button, main label.btn").forEach((el) => {
+    if (el.closest(".datebar") || el.hasAttribute("data-keep")) return;
+    el.disabled = true; el.classList.add("is-locked");
+  });
 }
 
 /* Voix : import de fichier audio ou enregistrement direct (HTTPS ou localhost). */
@@ -214,8 +246,7 @@ function bindExport(id) {
       if (!a) throw new Error("Choisis une date de début");
       qs = `?start=${a}&end=${b || todayISO()}`;
     } else if (sel.value !== "all") qs = `?days=${sel.value}`;
-    const headers = S.pin ? { "X-PEI-PIN": S.pin } : {};
-    const res = await fetch(`/api/export/excel${qs}`, { headers });
+    const res = await fetch(`/api/export/excel${qs}`, { credentials: "same-origin" });
     if (!res.ok) throw new Error("Export impossible");
     const cd = res.headers.get("Content-Disposition") || "";
     const name = (cd.match(/filename="([^"]+)"/) || [])[1] || "PEI_export.xlsx";
@@ -235,27 +266,125 @@ async function loadMeta() {
   S.goals = goals; S.categories = cats;
 }
 
-function renderLock() {
-  app.innerHTML = `<div class="lock-screen"><div class="card">
-    <h2 style="justify-content:center">${icon("lock")}Accès protégé</h2>
-    <p class="muted">Saisis le code PIN défini sur le PC.</p>
-    <input type="password" inputmode="numeric" id="pin" placeholder="Code PIN" autocomplete="current-password">
-    <div class="btns"><button class="btn block" id="pin-ok">${icon("check")}Déverrouiller</button></div>
-  </div></div>`;
-  $("#pin-ok").onclick = async () => {
-    S.pin = $("#pin").value.trim();
-    const r = await fetch("/api/auth/check", { headers: { "X-PEI-PIN": S.pin } });
-    if (r.ok) { safeSet("pei_pin", S.pin); S.meta = null; route(); } else toast("Code incorrect", "err");
+/* Authentification : page plein écran avec la photo de profil. */
+function photoURL() { return `/profil/photo?v=${S.photoVersion || 0}`; }
+
+function renderAuth(mode) {
+  document.body.classList.add("auth-mode");
+  const setup = mode === "setup";
+  app.innerHTML = `<div class="auth-page">
+    <div class="auth-card">
+      <div class="auth-photo"><img src="${photoURL()}" alt="Photo de profil"></div>
+      <h1 class="auth-title">Personal Evolution Intelligence</h1>
+      <p class="auth-sub">${setup ? "Bienvenue. Crée ton compte personnel pour protéger tes données." : "Heureux de te revoir. Connecte toi pour continuer."}</p>
+      <form id="auth-form" autocomplete="on" novalidate>
+        ${setup ? `<label for="a-name">Ton prénom</label><input id="a-name" autocomplete="name" placeholder="Prénom">` : ""}
+        <label for="a-user">Identifiant</label>
+        <div class="field">${icon("user", "sm")}<input id="a-user" autocomplete="username" autocapitalize="none" spellcheck="false" required></div>
+        <label for="a-pass">Mot de passe</label>
+        <div class="field">${icon("lock", "sm")}<input id="a-pass" type="password" autocomplete="${setup ? "new-password" : "current-password"}" required>
+          <button type="button" class="eye" id="a-eye" aria-label="Afficher le mot de passe">${icon("eye", "sm")}</button></div>
+        ${setup ? `<label for="a-pass2">Confirmer le mot de passe</label>
+        <div class="field">${icon("lock", "sm")}<input id="a-pass2" type="password" autocomplete="new-password" required></div>
+        <p class="small muted">Au moins 8 caractères, avec des lettres et des chiffres.</p>` : ""}
+        <div class="auth-error" id="a-err" role="alert"></div>
+        <button class="btn block" type="submit" id="a-go">${icon(setup ? "check" : "arrow_right")}${setup ? "Créer mon compte" : "Se connecter"}</button>
+      </form>
+      ${setup ? "" : `<p class="auth-foot">Mot de passe oublié : sur le PC, lance<br><code>python run.py motdepasse</code></p>`}
+    </div>
+    <div class="auth-band"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+  </div>`;
+  $("#a-eye").onclick = () => { const p = $("#a-pass"); p.type = p.type === "password" ? "text" : "password"; };
+  $("#a-user").focus();
+  $("#auth-form").onsubmit = async (e) => {
+    e.preventDefault();
+    const err = $("#a-err"); err.textContent = "";
+    const username = $("#a-user").value.trim(), password = $("#a-pass").value;
+    if (setup && password !== $("#a-pass2").value) { err.textContent = "Les deux mots de passe sont différents."; return; }
+    const btn = $("#a-go");
+    await guard(async () => {
+      try {
+        const r = await api(setup ? "/auth/setup" : "/auth/login", { body: setup
+          ? { username, password, display_name: $("#a-name").value.trim() || null } : { username, password } });
+        S.user = r.user; S.meta = null;
+        enterApp();
+        if (!location.hash || location.hash === "#/") route(); else route();
+      } catch (ex) { err.textContent = ex.message; throw ex; }
+    }, btn);
   };
+}
+
+function enterApp() {
+  document.body.classList.remove("auth-mode");
+  const img = $("#me-photo"); if (img) img.src = photoURL();
+  const name = $("#top-name"); if (name && S.user) name.textContent = S.user.display_name || S.user.username;
+}
+
+async function boot() {
+  try {
+    const st = await (await fetch("/api/auth/status", { credentials: "same-origin" })).json();
+    S.backfill = st.backfill_days ?? 4;
+    if (!st.configured) return renderAuth("setup");
+    if (!st.authenticated) return renderAuth("login");
+    S.user = st.user;
+    enterApp();
+    route();
+  } catch (e) { app.innerHTML = `<div class="card accent-red">${empty("wifi", "Serveur injoignable. Vérifie que le PC est allumé et sur le même Wi-Fi.")}</div>`; }
+}
+
+/* Régularité de saisie : à quel point j'oublie de renseigner mes journées. */
+function pendingList(e) {
+  if (!e.pending || !e.pending.length) return "";
+  return `<div class="list">${e.pending.map((p) => `<div class="item"><span class="dim-badge dim-physique">${icon("clock")}</span>
+    <div class="grow"><div class="title">${esc(fmtDate(p.date))}</div>
+    <div class="meta"><span>${esc(p.reason)}</span><span class="chip ${p.days_left <= 1 ? "red" : "yellow"}">${p.days_left > 0
+      ? `encore ${p.days_left} jour${p.days_left > 1 ? "s" : ""}` : "dernier jour"}</span></div></div>
+    <button class="btn small" data-catch="${p.date}">${icon("edit", "sm")}Rattraper</button></div>`).join("")}</div>`;
+}
+
+function bindPending() {
+  $$("[data-catch]").forEach((b) => (b.onclick = () => { S.date = b.dataset.catch; location.hash = "#/soir"; }));
+}
+
+function entryCard(e, full = false) {
+  if (!e || !e.n_closed) return full ? `<div class="card"><h2>${icon("calendar")}Régularité de saisie</h2>${empty("calendar", "Pas encore de journée terminée.")}</div>` : "";
+  const weeks = (e.weekly || []).slice(-12);
+  const maxW = Math.max(1, ...weeks.map((w) => w.a_temps + w.rattrapee + w.oubliee + w.a_rattraper + w.en_cours));
+  return `<div class="card ${full ? "" : "accent-yellow"}"><h2>${icon("calendar")}Régularité de saisie</h2>
+    <div class="kpis">
+      <div class="kpi"><div class="v">${pct(e.on_time_rate)}</div><div class="l">le jour même</div></div>
+      <div class="kpi"><div class="v" style="color:#b58f00">${pct(e.late_rate)}</div><div class="l">rattrapées</div></div>
+      <div class="kpi"><div class="v" style="color:var(--red)">${pct(e.missed_rate)}</div><div class="l">oubliées</div></div>
+    </div>
+    <p class="small" style="margin:10px 0 0">${esc(e.message)}</p>
+    ${full ? `
+      <div class="kpis" style="margin-top:10px">
+        <div class="kpi"><div class="v">${e.mean_delay == null ? "n.d." : String(e.mean_delay).replace(".", ",") + " j"}</div><div class="l">délai moyen de rattrapage</div></div>
+        <div class="kpi"><div class="v">${e.evening_missing}</div><div class="l">bilans du soir oubliés</div></div>
+        <div class="kpi"><div class="v">${e.best_on_time_streak}</div><div class="l">record de jours à temps</div></div>
+      </div>
+      <h3>Par semaine</h3>
+      <div class="entry-weeks">${weeks.map((w) => `<div class="ew" title="Semaine du ${esc(w.week)}">
+        <div class="ew-bar" style="height:70px">
+          ${["oubliee", "rattrapee", "a_temps"].map((k) => `<i class="ew-${k}" style="height:${(w[k] / maxW) * 100}%"></i>`).join("")}</div>
+        <small>${esc(fmtDate(w.week, { day: "numeric", month: "numeric" }))}</small></div>`).join("")}</div>
+      <div class="legend small"><span><i class="ew-a_temps"></i>le jour même</span><span><i class="ew-rattrapee"></i>rattrapée</span><span><i class="ew-oubliee"></i>oubliée</span></div>
+      <h3>Jours les plus souvent oubliés</h3>
+      ${e.by_weekday.map((w) => `<div class="bar-row" style="grid-template-columns:90px 1fr 60px"><span class="lbl">${esc(w.weekday)}</span>
+        <div class="bar red"><i style="width:${(w.forget_rate || 0) * 100}%"></i></div><span class="small" style="text-align:right">${pct(w.forget_rate)}</span></div>`).join("")}
+      <p class="small muted">Une journée se renseigne le jour même ou jusqu'à ${e.window_days} jours après ; au delà, elle est verrouillée et comptée comme oubliée.</p>` : ""}
+    ${e.pending.length ? `<h3>${icon("clock", "sm")} À rattraper</h3>${pendingList(e)}` : ""}
+  </div>`;
 }
 
 /* Accueil */
 
 async function pageHome() {
   const isToday = S.date === todayISO();
-  const [day, summary, insights, review, preds] = await Promise.all([
+  const [day, summary, insights, review, preds, entry] = await Promise.all([
     api(`/days/${S.date}`), api("/statistics/summary?days=7"), api("/insights?days=90").catch(() => []),
     api("/decisions/to-review").catch(() => []), api(`/predict/day/${S.date}`).catch(() => []),
+    api("/statistics/saisie?days=30").catch(() => null),
   ]);
   const predBy = Object.fromEntries(preds.map((p) => [p.intention_id, p]));
   const hour = new Date().getHours();
@@ -278,7 +407,7 @@ async function pageHome() {
       </div>${prob}</div>`;
   }).join("");
 
-  const ins = (insights || []).slice(0, 3).map((i) => `<div class="item insight"><span class="ib">${icon(i.icon || "bulb")}</span>
+  const ins = (insights || []).filter((i) => i.type !== "rattrapage").slice(0, 3).map((i) => `<div class="item insight"><span class="ib">${icon(i.icon || "bulb")}</span>
     <div class="grow"><div class="title">${esc(i.title)}</div><div class="small">${esc(i.message)}</div>
     <div class="caveat">${icon("info", "sm")}${esc(i.caveat || "")}</div></div></div>`).join("");
 
@@ -297,6 +426,9 @@ async function pageHome() {
       <a class="btn ${morningDone ? "ghost" : ""}" href="#/matin">${icon("sun")}${morningDone ? "Intentions saisies" : "Mes intentions"}</a>
       <a class="btn ${eveningDone ? "ghost" : "yellow"}" href="#/soir">${icon("moon")}${eveningDone ? "Bilan fait" : "Bilan du soir"}</a>
     </div>
+    ${entry && entry.pending.length ? `<div class="card accent-red"><h2>${icon("clock")}Journées à rattraper</h2>
+      <p class="small muted" style="margin-top:-4px">Tu as ${S.backfill} jours pour compléter une journée oubliée. Ensuite elle est verrouillée.</p>
+      ${pendingList(entry)}</div>` : ""}
     <div class="card accent">
       <h2>${icon("target")}Intention, action, résultat</h2>
       ${intentions ? `<div class="list">${intentions}</div>` : empty("sun", "Aucune intention pour cette journée.")}
@@ -311,6 +443,8 @@ async function pageHome() {
       </div>
       <p class="small muted" style="margin:10px 0 0">Série en cours : ${summary.current_streak} jours. Record : ${summary.longest_streak} jours.</p>`}
     </div>
+    ${entry && entry.n_closed ? `<a class="card entry-mini" href="#/bilan">${icon("calendar")}<div class="grow"><b>Régularité de saisie (30 jours)</b>
+      <div class="small muted">${pct(entry.on_time_rate)} le jour même, ${pct(entry.late_rate)} rattrapées, ${pct(entry.missed_rate)} oubliées</div></div>${icon("chevron_right")}</a>` : ""}
     ${review.length ? `<div class="card accent-yellow"><h2>${icon("scale")}Décisions à revoir</h2><div class="list">
       ${review.map((r) => `<a class="item" href="#/journal" style="text-decoration:none;color:inherit"><div class="grow"><div class="title">${esc(r.title)}</div>
       <div class="meta"><span>${icon("calendar", "sm")}prise le ${fmtDate(r.date, { day: "numeric", month: "long" })}</span></div></div>${icon("chevron_right")}</a>`).join("")}</div></div>` : ""}
@@ -318,6 +452,7 @@ async function pageHome() {
       <div class="btns"><a class="btn ghost small" href="#/bilan">${icon("chart")}Voir le bilan</a></div></div>` : ""}
   `;
   bindDateBar(route);
+  bindPending();
 }
 
 /* Matin */
@@ -364,7 +499,8 @@ async function pageMorning() {
   app.innerHTML = `
     <h1>${icon("sun")}Intentions du matin</h1>
     <p class="lead">Ce que tu veux faire aujourd'hui. L'IA propose, tu valides.</p>
-    ${dateBar()}
+    ${dateBar(true)}
+    ${lockBanner(day)}
     <div class="card">
       <h2>${icon("sliders")}Comment commences tu la journée ?</h2>
       <div class="row"><div><label>${icon("bed", "sm")} Sommeil (heures)</label><input id="m-sleep" type="number" step="0.25" min="0" max="24" inputmode="decimal" value="${d.sleep_hours ?? ""}"></div>
@@ -392,6 +528,7 @@ async function pageMorning() {
         <button class="btn ghost icon" data-rm="${it.id}" aria-label="Supprimer">${icon("trash")}</button></div>`).join("")}</div></div>` : ""}
   `;
   bindDateBar(route);
+  applyLock(day);
   bindScales(app);
 
   const syncDraft = () => { draft.items = readIntentions(); draft.text = $("#m-text").value; };
@@ -446,7 +583,8 @@ async function pageDay() {
   app.innerHTML = `
     <h1>${icon("clock")}Pendant la journée</h1>
     <p class="lead">Note ce que tu fais réellement, au fil de l'eau.</p>
-    ${dateBar()}
+    ${dateBar(true)}
+    ${lockBanner(day)}
     <div class="card accent">
       <h2>${icon("check")}Une activité réalisée</h2>
       ${catDatalist()}
@@ -490,6 +628,7 @@ async function pageDay() {
       </div></div>
   `;
   bindDateBar(route);
+  applyLock(day);
   const intSel = $("#a-int");
   if (intSel) intSel.onchange = () => {
     const it = day.intentions.find((i) => String(i.id) === intSel.value);
@@ -560,7 +699,8 @@ async function pageEvening() {
   app.innerHTML = `
     <h1>${icon("moon")}Bilan du soir</h1>
     <p class="lead">Ce que tu voulais faire, ce que tu as fait, ce que cela a produit.</p>
-    ${dateBar()}
+    ${dateBar(true)}
+    ${lockBanner(day)}
     <div class="card accent">
       <h2>${icon("message")}Raconte ta journée</h2>
       <textarea id="e-text" placeholder="J'avais prévu deux heures de Python mais j'ai finalement travaillé une heure quinze. J'ai terminé la partie sur les modèles de classification. Je n'ai pas fait de sport parce que j'étais fatigué.">${esc(draft.text)}</textarea>
@@ -602,6 +742,7 @@ async function pageEvening() {
     <button class="btn block yellow" id="e-save">${icon("check")}Enregistrer mon bilan</button>
   `;
   bindDateBar(route);
+  applyLock(day);
   bindScales(app);
 
   $$(".edit-item[data-int]").forEach((card) => {
@@ -909,8 +1050,8 @@ async function pageMemory() {
 /* Bilan */
 
 async function pageReview() {
-  const [s30, cal, trends, insights, ab] = await Promise.all([api("/statistics/summary?days=30"), api("/statistics/calibration"),
-    api("/statistics/trends"), api("/insights"), api("/statistics/abandons")]);
+  const [s30, cal, trends, insights, ab, entry] = await Promise.all([api("/statistics/summary?days=30"), api("/statistics/calibration"),
+    api("/statistics/trends"), api("/insights"), api("/statistics/abandons"), api("/statistics/saisie?days=90")]);
   const maxMin = Math.max(1, ...(s30.dimensions || []).map((d) => d.minutes));
   app.innerHTML = `
     <h1>${icon("chart")}Bilan</h1>
@@ -929,6 +1070,7 @@ async function pageReview() {
         <div><div class="small">${esc(d.label)}${d.completion_rate != null ? ` <span class="muted">(${pct(d.completion_rate)} réalisé)</span>` : ""}</div><div class="bar"><i style="width:${(d.minutes / maxMin) * 100}%"></i></div></div>
         <span class="small" style="text-align:right">${d.hours} h</span></div>`).join("")}
     </div>`}
+    ${entryCard(entry, true)}
     <div class="card"><h2>${icon("bulb")}Recommandations</h2>
       ${insights.length ? `<div class="list">${insights.map((i) => `<div class="item insight"><span class="ib">${icon(i.icon || "bulb")}</span><div class="grow">
         <div class="title">${esc(i.title)}</div><div class="small">${esc(i.message)}</div><div class="caveat">${icon("info", "sm")}${esc(i.caveat || "")}</div></div></div>`).join("")}</div>`
@@ -956,6 +1098,7 @@ async function pageReview() {
     <div class="card accent"><h2>${icon("download")}Exporter mes données</h2>${exportBlock("exp-bilan")}</div>
     <a class="btn block ghost" href="#/dashboard">${icon("gauge")}Ouvrir le tableau de bord complet</a>`;
   bindExport("exp-bilan");
+  bindPending();
   $("#sim-go").onclick = (ev) => guard(async () => {
     const cat = $("#sim-cat").value.trim() || null;
     const known = S.categories.find((c) => c.category === cat);
@@ -979,7 +1122,7 @@ async function pageHistory() {
     <div class="card">${days.length ? `<div class="list">${days.map((d) => `<a class="item" href="#/jour/${d.date}" style="text-decoration:none;color:inherit">
       <span class="dim-badge">${icon(d.evening_done ? "check_circle" : d.morning_done ? "sun" : "clock")}</span><div class="grow">
       <div class="title">${esc(fmtDate(d.date, { weekday: "long", day: "numeric", month: "long", year: "numeric" }))}</div>
-      <div class="meta"><span>${d.summary.n_intentions} intentions</span><span>${pct(d.summary.completion_rate)}</span><span>${fmtMin(d.summary.actual_minutes) || "0 min"}</span>${d.mood ? `<span>${icon("smile", "sm")}${d.mood}/5</span>` : ""}</div>
+      <div class="meta">${d.editable ? `<span class="chip yellow">${icon("edit", "sm")}modifiable</span>` : `<span>${icon("lock", "sm")}verrouillée</span>`}<span>${d.summary.n_intentions} intentions</span><span>${pct(d.summary.completion_rate)}</span><span>${fmtMin(d.summary.actual_minutes) || "0 min"}</span>${d.mood ? `<span>${icon("smile", "sm")}${d.mood}/5</span>` : ""}</div>
       ${d.highlight ? `<div class="small">${esc(d.highlight)}</div>` : ""}</div>${icon("chevron_right")}</a>`).join("")}</div>` : empty("calendar", "Aucune journée enregistrée.")}</div>`;
 }
 
@@ -988,7 +1131,9 @@ async function pageDayDetail(iso) {
   const sources = [...new Set(day.intentions.map((i) => i.source_id).concat(day.activities.map((a) => a.source_id)).filter(Boolean))];
   const srcData = await Promise.all(sources.map((id) => api(`/sources/${id}`).catch(() => null)));
   app.innerHTML = `<h1>${icon("calendar")}${esc(fmtDate(iso, { weekday: "long", day: "numeric", month: "long", year: "numeric" }))}</h1>
-    <div class="btns" style="margin:0 0 14px"><button class="btn ghost" id="dd-edit">${icon("edit")}Modifier cette journée</button></div>
+    ${day.editable ? `<div class="btns" style="margin:0 0 14px"><button class="btn ghost" id="dd-edit">${icon("edit")}Compléter cette journée</button></div>
+      <p class="small muted">Modifiable jusqu'au ${esc(fmtDate(day.deadline, { day: "numeric", month: "long" }))}.</p>`
+      : `<div class="hint" style="margin:0 4px 12px">${icon("lock", "sm")}Journée verrouillée : le délai de ${S.backfill} jours pour la renseigner est passé.</div>`}
     <div class="card"><h2>${icon("route")}Intention, action, résultat</h2>${day.intentions.length ? `<div class="list">${day.intentions.map((it) => `<div class="item">${dimBadge(it.dimension)}<div class="grow">
       <div class="title">${esc(it.description)}</div><div class="meta"><span class="status-ic ${it.status}">${icon((STATUS[it.status] || STATUS.prevu).icon, "sm")}${(STATUS[it.status] || STATUS.prevu).label}</span>
       ${it.estimated_minutes ? `<span>prévu ${fmtMin(it.estimated_minutes)}</span>` : ""}${it.actual_minutes ? `<span>réel ${fmtMin(it.actual_minutes)}</span>` : ""}</div>
@@ -998,7 +1143,7 @@ async function pageDayDetail(iso) {
       ${srcData.filter(Boolean).map((s) => `<div class="item" style="margin-bottom:8px"><div class="grow"><div class="meta"><span class="chip gray">${esc(s.kind)}</span><span>${esc(s.moment || "")}</span>
       ${s.extractions.map((e) => `<span class="chip ${e.status === "valide" ? "" : e.status === "corrige" ? "yellow" : "gray"}">${esc(e.engine)} : ${esc(e.status)}</span>`).join("")}</div>
       ${s.raw_text ? `<div class="small">${esc(s.raw_text)}</div>` : ""}${s.media_id ? `<a class="small" href="/api/media/${s.media_id}/file" target="_blank">${icon("play", "sm")}Écouter l'original</a>` : ""}</div></div>`).join("")}</div>` : ""}`;
-  $("#dd-edit").onclick = () => { S.date = iso; location.hash = "#/soir"; };
+  const ed = $("#dd-edit"); if (ed) ed.onclick = () => { S.date = iso; location.hash = "#/soir"; };
 }
 
 /* Tableau de bord et réglages */
@@ -1015,6 +1160,15 @@ async function pageDashboard() {
 async function pageSettings() {
   const [info, backups] = await Promise.all([api("/system/info"), api("/system/backups")]);
   app.innerHTML = `<h1>${icon("settings")}Réglages</h1>
+    <div class="card accent profile-card">
+      <div class="profile-row"><img class="profile-photo" id="pf-img" src="${photoURL()}" alt="Photo de profil">
+        <div class="grow"><b>${esc(S.user?.display_name || S.user?.username || "")}</b>
+          <div class="small muted">Identifiant : ${esc(S.user?.username || "")}</div>
+          <div class="small muted">Cette photo s'affiche sur la page de connexion et en haut de l'application.</div></div></div>
+      <div class="btns">
+        <label class="btn small" style="margin:0">${icon("image", "sm")}Changer la photo<input type="file" accept="image/*" id="pf-file" hidden></label>
+        <button class="btn ghost small" id="pf-reset">${icon("refresh", "sm")}Photo par défaut</button></div>
+    </div>
     <div class="card"><h2>${icon("wifi")}Réseau local</h2>
       ${info.local_ips.map((ip) => `<div class="item"><div class="grow"><b>http://${esc(ip)}:${location.port || 8000}</b><div class="small muted">Adresse à ouvrir sur le téléphone</div></div></div>`).join("") || "<p class='muted'>Adresse locale inconnue.</p>"}
       <p class="small muted">Pour l'installer : menu du navigateur, puis Ajouter à l'écran d'accueil.</p></div>
@@ -1030,12 +1184,38 @@ async function pageSettings() {
       <div class="btns"><button class="btn" id="bk-go">${icon("download")}Créer une sauvegarde</button></div>
       <div class="list" style="margin-top:10px">${backups.slice(0, 8).map((b) => `<a class="item" href="/api/system/backups/${encodeURIComponent(b.name)}" style="color:inherit;text-decoration:none">${icon("archive")}<div class="grow"><div class="title small">${esc(b.name)}</div><div class="meta"><span>${b.size_mb} Mo</span></div></div>${icon("download")}</a>`).join("")}</div>
       <p class="small muted">Copie ensuite le fichier sur un disque externe ou une clé USB.</p></div>
-    <div class="card"><h2>${icon("lock")}Code PIN</h2>
-      <p class="small muted">${info.pin_enabled ? "Un code PIN protège l'accès." : "Aucun code PIN. Pour en définir un, lance le serveur avec la variable PEI_PIN."}</p>
-      ${info.pin_enabled ? `<button class="btn ghost" id="pin-out">${icon("lock")}Oublier le code sur ce téléphone</button>` : ""}</div>`;
+    <div class="card"><h2>${icon("lock")}Mot de passe</h2>
+      <label>Mot de passe actuel</label><input type="password" id="pw-cur" autocomplete="current-password">
+      <label>Nouveau mot de passe</label><input type="password" id="pw-new" autocomplete="new-password">
+      <label>Confirmer</label><input type="password" id="pw-new2" autocomplete="new-password">
+      <div class="btns"><button class="btn ghost" id="pw-go">${icon("save")}Changer le mot de passe</button></div>
+      <p class="small muted">Les autres appareils connectés seront déconnectés.</p></div>
+    <button class="btn block red" id="logout">${icon("lock")}Se déconnecter</button>`;
   bindExport("exp-set");
   $("#bk-go").onclick = (ev) => guard(async () => { const r = await api("/system/backup", { method: "POST" }); toast(`Sauvegarde ${r.file} créée`); pageSettings(); }, ev.currentTarget);
-  const out = $("#pin-out"); if (out) out.onclick = () => { safeSet("pei_pin", ""); S.pin = ""; renderLock(); };
+  $("#pf-file").onchange = (ev) => guard(async () => {
+    const f = ev.target.files[0]; if (!f) return;
+    const fd = new FormData(); fd.append("file", f, f.name);
+    await api("/profil/photo", { body: fd });
+    S.photoVersion = Date.now(); enterApp(); $("#pf-img").src = photoURL();
+    toast("Photo mise à jour");
+  });
+  $("#pf-reset").onclick = (ev) => guard(async () => {
+    await api("/profil/photo", { method: "DELETE" });
+    S.photoVersion = Date.now(); enterApp(); $("#pf-img").src = photoURL();
+    toast("Photo par défaut rétablie");
+  }, ev.currentTarget);
+  $("#pw-go").onclick = (ev) => guard(async () => {
+    const cur = $("#pw-cur").value, nw = $("#pw-new").value;
+    if (nw !== $("#pw-new2").value) throw new Error("Les deux nouveaux mots de passe sont différents");
+    await api("/auth/password", { body: { current: cur, new: nw } });
+    ["#pw-cur", "#pw-new", "#pw-new2"].forEach((id) => ($(id).value = ""));
+    toast("Mot de passe changé");
+  }, ev.currentTarget);
+  $("#logout").onclick = (ev) => guard(async () => {
+    await api("/auth/logout", { method: "POST" });
+    S.user = null; renderAuth("login");
+  }, ev.currentTarget);
 }
 
 /* Routeur */
@@ -1058,10 +1238,10 @@ async function route() {
   loading();
   window.scrollTo(0, 0);
   try { await loadMeta(); await fn(); }
-  catch (e) { if (e.message !== "Code PIN requis") app.innerHTML = `<div class="card accent-red">${empty("alert", e.message)}</div>`; }
+  catch (e) { if (e.message !== "AUTH") app.innerHTML = `<div class="card accent-red">${empty("alert", e.message)}</div>`; }
 }
 
 $("#btn-search").onclick = () => (location.hash = "#/memoire");
-window.addEventListener("hashchange", route);
+window.addEventListener("hashchange", () => { if (!document.body.classList.contains("auth-mode")) route(); });
 if ("serviceWorker" in navigator && window.isSecureContext) navigator.serviceWorker.register("/service-worker.js").catch(() => {});
-route();
+boot();

@@ -1,6 +1,6 @@
 # Modèle Conceptuel de Données de PEI
 
-*Personal Evolution Intelligence, 06/10/2026*
+*Personal Evolution Intelligence, 16/10/2026*
 
 ## 1. Qu'est ce que le MCD ?
 
@@ -11,7 +11,7 @@ Le Modèle Conceptuel de Données (méthode Merise) décrit les informations man
 * Une **cardinalité** « min,max » est écrite en rouge sur chaque patte : le minimum (0 ou 1) dit si la participation est facultative ou obligatoire, le maximum (1 ou n) dit si elle est unique ou multiple.
 * Au niveau conceptuel il n'y a pas de clé étrangère : elles n'apparaissent qu'au passage au modèle logique (MLD).
 
-Le MCD de PEI compte **15 entités** et **17 associations**. Il est organisé autour de deux pivots : **JOUR**, qui donne la dimension longitudinale (tout se rattache à une date), et **SOURCE**, qui garantit la traçabilité (toute donnée structurée remonte à sa donnée brute).
+Le MCD de PEI compte **17 entités** et **18 associations**. Il est organisé autour de deux pivots : **JOUR**, qui donne la dimension longitudinale (tout se rattache à une date), et **SOURCE**, qui garantit la traçabilité (toute donnée structurée remonte à sa donnée brute).
 
 ## 2. Le schéma
 
@@ -40,12 +40,15 @@ Le schéma est fourni en vectoriel (docs/mcd.svg et page précédente du PDF) : 
 | EXPERIENCE | experiments | Expérience personnelle : hypothèse testée sur une période. | 10 |
 | PERSONNE | people | Personne de l'entourage (famille, ami, mentor...). | 6 |
 | ECHANGE | interactions | Échange avec une personne : appel, visite, rencontre, message. | 5 |
+| UTILISATEUR | users | Compte local protégeant l'accès aux données (mot de passe haché). | 8 |
+| SESSION_CONNEXION | auth_sessions | Connexion ouverte sur un appareil (téléphone, PC), avec date d'expiration. | 6 |
 
 Trois groupes se dégagent :
 
 * **Le cœur quotidien** : JOUR, INTENTION, ACTIVITE, REFLEXION, MEDIA. Il traduit la chaîne Intention, Action, Résultat (le résultat est une propriété de l'activité et de l'intention).
 * **La traçabilité et l'intelligence** : SOURCE, EXTRACTION, PREDICTION. Elles conservent la donnée brute, ce que l'IA en a tiré, ce que l'utilisateur a validé, et ce que les modèles ont prédit.
 * **Les dimensions longues** : OBJECTIF, COMPETENCE, EVALUATION, DECISION, EXPERIENCE, PERSONNE, ECHANGE.
+* **La sécurité** : UTILISATEUR et SESSION_CONNEXION protègent l'accès. Le mot de passe et les jetons ne sont conservés que sous forme d'empreinte.
 
 ## 4. Les associations et leurs cardinalités
 
@@ -70,6 +73,7 @@ Chaque ligne se lit dans les deux sens. Exemple pour PREVOIR : « une JOUR(née)
 | EXERCER | COMPETENCE | 0,n | ACTIVITE | 0,1 | Une compétence est exercée par zéro ou plusieurs activités ; une activité exerce au plus une compétence. |
 | EVALUER | COMPETENCE | 0,n | EVALUATION | 1,1 | Une compétence reçoit zéro ou plusieurs évaluations ; une évaluation concerne exactement une compétence. |
 | ECHANGER | PERSONNE | 0,n | ECHANGE | 1,1 | Une personne a zéro ou plusieurs échanges ; un échange concerne exactement une personne. |
+| OUVRIR | UTILISATEUR | 0,n | SESSION_CONNEXION | 1,1 | Un utilisateur ouvre zéro ou plusieurs sessions (une par appareil) ; une session appartient à exactement un utilisateur. |
 
 ## 5. Justification des cardinalités
 
@@ -112,6 +116,8 @@ Règles appliquées : chaque entité devient une table, son identifiant devient 
 * **experiments** (__id__, title, hypothesis, intervention, metric, start_date, end_date, status, conclusion, created_at)
 * **people** (__id__, name, relation, notes, contact_every_days, created_at)
 * **interactions** (__id__, #person_id, date, kind, note, created_at)
+* **users** (__id__, username, display_name, password_hash, failed_attempts, locked_until, last_login_at, created_at)
+* **auth_sessions** (__id__, #user_id, token_hash, user_agent, created_at, last_seen_at, expires_at)
 
 Notation : identifiant souligné, clé étrangère précédée de #.
 
@@ -134,8 +140,9 @@ Notation : identifiant souligné, clé étrangère précédée de #.
 | EXERCER | activities.skill_id | skills | Facultative |
 | EVALUER | skill_progress.skill_id | skills | Obligatoire |
 | ECHANGER | interactions.person_id | people | Obligatoire |
+| OUVRIR | auth_sessions.user_id | users | Obligatoire |
 
-Comportement à la suppression : les clés obligatoires vers JOUR, SOURCE, COMPETENCE et PERSONNE sont en suppression en cascade ; les clés facultatives sont mises à vide (SET NULL), afin de ne jamais perdre une donnée d'origine.
+Comportement à la suppression : les clés obligatoires vers JOUR, SOURCE, COMPETENCE, PERSONNE et UTILISATEUR sont en suppression en cascade ; les clés facultatives sont mises à vide (SET NULL), afin de ne jamais perdre une donnée d'origine.
 
 ## 8. Dictionnaire des données : propriétés de chaque table
 
@@ -417,3 +424,32 @@ Personne de l'entourage (famille, ami, mentor...).
 | kind | Texte (30) | Obligatoire, Défaut : conversation | appel, visite, message, rencontre, conversation |
 | note | Texte long | Facultatif | Note sur l'échange |
 | created_at | Date et heure | Obligatoire, Défaut : maintenant | Date de création |
+
+### UTILISATEUR (table users)
+
+Compte local protégeant l'accès aux données (mot de passe haché).
+
+| Propriété | Type | Contraintes | Description |
+|---|---|---|---|
+| id | Entier | Clé primaire | Identifiant |
+| username | Texte (60) | Unique, Obligatoire | Identifiant de connexion, unique |
+| display_name | Texte (120) | Facultatif | Prénom affiché |
+| password_hash | Texte (200) | Obligatoire | Empreinte PBKDF2 du mot de passe (jamais le mot de passe lui même) |
+| failed_attempts | Entier | Obligatoire, Défaut : 0 | Essais ratés consécutifs |
+| locked_until | Date et heure | Facultatif | Connexion bloquée jusqu'à cette date |
+| last_login_at | Date et heure | Facultatif | Dernière connexion |
+| created_at | Date et heure | Obligatoire, Défaut : maintenant | Date de création du compte |
+
+### SESSION_CONNEXION (table auth_sessions)
+
+Connexion ouverte sur un appareil (téléphone, PC), avec date d'expiration.
+
+| Propriété | Type | Contraintes | Description |
+|---|---|---|---|
+| id | Entier | Clé primaire | Identifiant |
+| user_id | Entier | Clé étrangère vers users, Obligatoire | Compte connecté |
+| token_hash | Texte (64) | Unique, Obligatoire | Empreinte SHA 256 du jeton de session |
+| user_agent | Texte (300) | Facultatif | Navigateur ou appareil |
+| created_at | Date et heure | Obligatoire, Défaut : maintenant | Ouverture de la session |
+| last_seen_at | Date et heure | Obligatoire, Défaut : maintenant | Dernière activité |
+| expires_at | Date et heure | Obligatoire | Expiration de la session |

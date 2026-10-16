@@ -23,7 +23,7 @@ from backend import icons  # noqa: E402
 from backend import models as m  # noqa: E402
 from backend.db import init_engine, session_scope  # noqa: E402
 from backend.domain import DIMENSIONS, HORIZONS, INTENTION_STATUSES, dimension_label  # noqa: E402
-from backend.services import analytics, ask, export_excel  # noqa: E402
+from backend.services import analytics, ask, auth, export_excel, profile  # noqa: E402
 from backend.services import skills as skill_service  # noqa: E402
 
 init_engine()
@@ -52,6 +52,11 @@ def layout(fig: go.Figure, height: int = 360, title: str | None = None) -> go.Fi
     return fig
 
 
+def nan_to_none(df: pd.DataFrame) -> list:
+    """Les cases vides doivent être None (et non NaN) pour la transmission au navigateur."""
+    return df.astype(object).where(df.notna(), None).values.tolist()
+
+
 def empty_fig(msg: str = "Pas encore assez de données") -> go.Figure:
     fig = go.Figure()
     fig.add_annotation(text=msg, showarrow=False, font=dict(size=14, color="#5B6A63"), x=0.5, y=0.5, xref="paper", yref="paper")
@@ -64,6 +69,9 @@ CSS = f"""
 :root {{ --g:{GREEN}; --y:{YELLOW}; --r:{RED}; }}
 body {{ background:#F4F6F2; }}
 .pei-head {{ display:flex; align-items:center; gap:14px; padding:14px 22px; background:var(--g); color:#fff; }}
+.head-photo {{ width: 46px; height: 46px; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 3px var(--y); display: block; }}
+#head_user {{ margin-left: auto; }}
+.head-user {{ font-size: 13px; opacity: .9; }}
 .pei-head h1 {{ font-size:20px; margin:0; font-weight:700; }}
 .pei-head small {{ opacity:.85; }}
 .pei-band {{ height:6px; background:linear-gradient(90deg, var(--r) 0 30%, var(--y) 30% 44%, var(--g) 44% 58%, var(--y) 58% 72%, var(--g) 72% 86%, var(--y) 86% 100%); }}
@@ -113,15 +121,7 @@ def card(icon_name: str, title: str, *body, full_screen: bool = False):
 metric_choices = {k: v for k, v in analytics.METRIC_LABELS.items()}
 dim_choices = {k: v["label"] for k, v in DIMENSIONS.items()}
 
-app_ui = ui.page_fillable(
-    ui.tags.style(CSS),
-    ui.div(ui.div(class_="pei-band")),
-    ui.div(
-        ui.HTML(icons.logo_svg(44)),
-        ui.div(ui.h1("Personal Evolution Intelligence"), ui.tags.small("Tableau de bord analytique, entièrement local")),
-        class_="pei-head",
-    ),
-    ui.layout_sidebar(
+MAIN = ui.layout_sidebar(
         ui.sidebar(
             ui.input_select("period", ui.span(ic("calendar", 16), " Période"),
                             {"30": "30 derniers jours", "90": "3 derniers mois", "180": "6 derniers mois",
@@ -150,6 +150,21 @@ app_ui = ui.page_fillable(
                     card("bulb", "Ce que montrent tes données", ui.output_ui("insights")),
                     card("star", "Événements marquants", ui.output_ui("highlights")),
                     col_widths=[4, 5, 3],
+                ),
+            ),
+            ui.nav_panel(
+                nav_title("calendar", "Saisie"),
+                ui.output_ui("entry_kpis"),
+                ui.layout_columns(
+                    card("calendar", "Journées renseignées, rattrapées et oubliées, par semaine", output_widget("fig_entry_weeks"), full_screen=True),
+                    card("alert", "Jours de la semaine les plus souvent oubliés", output_widget("fig_entry_weekday")),
+                    col_widths=[7, 5],
+                ),
+                ui.layout_columns(
+                    card("clock", "Délai des rattrapages", output_widget("fig_entry_delay")),
+                    card("grid", "Calendrier de saisie", output_widget("fig_entry_calendar"), full_screen=True),
+                    card("edit", "Journées encore rattrapables", ui.output_ui("entry_pending")),
+                    col_widths=[3, 6, 3],
                 ),
             ),
             ui.nav_panel(
@@ -238,7 +253,7 @@ app_ui = ui.page_fillable(
                        class_="note", style="margin:8px 0 12px"),
                 ui.layout_columns(
                     card("route", "Simulation de scénario",
-                         ui.input_selectize("sim_cat", "Activité", choices=[], options={"create": True}),
+                         ui.output_ui("sim_cat_ui"),
                          ui.layout_columns(ui.input_numeric("sim_min", "Minutes par jour", 90, min=5, max=600),
                                            ui.input_numeric("sim_days", "Durée (jours)", 90, min=7, max=3650)),
                          ui.input_slider("sim_week", "Jours par semaine", 1, 7, 6),
@@ -260,14 +275,98 @@ app_ui = ui.page_fillable(
             ),
             id="tabs",
         ),
+    )
+
+app_ui = ui.page_fillable(
+    ui.tags.style(CSS),
+    ui.div(ui.div(class_="pei-band")),
+    ui.div(
+        ui.output_ui("head_photo", inline=True),
+        ui.div(ui.h1("Personal Evolution Intelligence"), ui.tags.small("Tableau de bord analytique, entièrement local")),
+        ui.output_ui("head_user", inline=True),
+        class_="pei-head",
     ),
+    ui.output_ui("root", fill=True, fillable=True),
     title="PEI Tableau de bord",
     padding=0,
     gap=0,
 )
 
 
+LOGIN_CSS = """
+.pei-login { max-width: 380px; margin: 70px auto; background: #fff; border-radius: 20px; padding: 80px 26px 26px;
+  box-shadow: 0 18px 44px rgba(16,35,28,.18); position: relative; text-align: center; }
+.pei-login .ph { position: absolute; left: 50%; top: 0; transform: translate(-50%,-50%); width: 120px; height: 120px;
+  border-radius: 50%; overflow: hidden; box-shadow: 0 0 0 5px #FFCE00, 0 0 0 9px #fff; }
+.pei-login .ph img { width: 100%; height: 100%; object-fit: cover; }
+.pei-login h2 { color: #006A4E; font-size: 20px; margin: 0 0 6px; }
+.pei-login .form-group { text-align: left; }
+.pei-login .err { color: #D21034; min-height: 22px; font-size: 14px; }
+"""
+
+
+def photo_data_uri() -> str:
+    import base64
+
+    data, mime = profile.photo_bytes()
+    return f"data:{mime};base64,{base64.b64encode(data).decode()}"
+
+
 def server(input, output, session):
+    # Authentification : session ouverte sur l'application (cookie partagé) ou connexion ici.
+    def cookie_user():
+        try:
+            token = session.http_conn.cookies.get(auth.COOKIE)
+        except AttributeError:
+            token = None
+        with session_scope() as s:
+            u = auth.user_for_token(s, token)
+            return (u.display_name or u.username) if u else None
+
+    authed = reactive.value(cookie_user())
+    login_error = reactive.value("")
+
+    @render.ui
+    def head_photo():
+        authed()  # rafraîchie à la connexion (la photo a pu changer)
+        return ui.img(src=photo_data_uri(), class_="head-photo", alt="Photo de profil")
+
+    @render.ui
+    def head_user():
+        name = authed()
+        return ui.span(f"Connecté : {name}", class_="head-user") if name else ui.span()
+
+    @render.ui
+    def root():
+        if authed():
+            return MAIN
+        with session_scope() as s:
+            configured = auth.is_configured(s)
+        body = [ui.tags.style(LOGIN_CSS), ui.div(ui.img(src=photo_data_uri(), alt="Photo"), class_="ph"),
+                ui.h2("Tableau de bord")]
+        if not configured:
+            body.append(ui.p("Crée d'abord ton compte depuis l'application (port 8000), puis reviens ici.", class_="note"))
+        else:
+            body += [ui.p("Connecte toi avec ton compte PEI.", class_="note"),
+                     ui.input_text("login_user", "Identifiant", width="100%"),
+                     ui.input_password("login_pass", "Mot de passe", width="100%"),
+                     ui.div(login_error(), class_="err"),
+                     ui.input_action_button("login_go", ui.span(ic("arrow_right", 16), " Se connecter"),
+                                            class_="btn-primary", width="100%")]
+        return ui.div(*body, class_="pei-login")
+
+    @reactive.effect
+    @reactive.event(input.login_go)
+    def _login():
+        try:
+            with session_scope() as s:
+                u = auth.check_credentials(s, input.login_user() or "", input.login_pass() or "")
+                name = u.display_name or u.username
+            login_error.set("")
+            authed.set(name)
+        except auth.AuthError as exc:
+            login_error.set(str(exc))
+
     @reactive.calc
     def period() -> tuple[date | None, date | None]:
         input.refresh()
@@ -314,6 +413,108 @@ def server(input, output, session):
             ui.p(ic("calendar", 16), f" depuis le {first[0].strftime('%d/%m/%Y')}" if first else " aucune donnée", class_="note"),
             ui.p(ic("shield", 16), " Données stockées sur ce PC uniquement", class_="note"),
         )
+
+    # Régularité de saisie
+
+    @reactive.calc
+    def entry():
+        start, end = period()
+        with session_scope() as s:
+            return analytics.entry_discipline(s, start, end)
+
+    @render.ui
+    def entry_kpis():
+        e = entry()
+        if not e["n_closed"]:
+            return ui.p("Pas encore de journée terminée à analyser.", class_="note")
+
+        def pct(x):
+            return "n.d." if x is None else f"{round(x * 100)} %"
+        boxes = [
+            ("check_circle", "Le jour même", pct(e["on_time_rate"]), f"{e['on_time']} journées", ""),
+            ("clock", "Rattrapées", pct(e["late_rate"]), f"{e['late']} journées", "vb-yellow"),
+            ("x_circle", "Oubliées", pct(e["missed_rate"]), f"{e['missed']} journées verrouillées", "vb-red"),
+            ("hourglass", "Délai moyen", f"{e['mean_delay']} j" if e["mean_delay"] is not None else "n.d.",
+             f"rattrapage autorisé : {e['window_days']} jours", ""),
+            ("moon", "Bilans du soir oubliés", e["evening_missing"],
+             f"{pct(e['evening_missing_rate'])} des journées avec intentions", "vb-red"),
+            ("flag", "Record à temps", f"{e['best_on_time_streak']} j", "jours de suite renseignés le jour même", "vb-yellow"),
+        ]
+        return ui.div(
+            ui.layout_columns(*[ui.value_box(t, v, sub, showcase=ic(icn, 34), class_=cls)
+                                for icn, t, v, sub, cls in boxes], col_widths=[2] * 6),
+            ui.div(ic("info", 16), ui.span(e["message"]), class_="note", style="margin:4px 0 10px"),
+        )
+
+    @render_plotly
+    def fig_entry_weeks():
+        e = entry()
+        if not e["weekly"]:
+            return empty_fig()
+        w = pd.DataFrame(e["weekly"])
+        fig = go.Figure()
+        for key, label, color in [("a_temps", "Le jour même", GREEN), ("rattrapee", "Rattrapée", YELLOW),
+                                  ("oubliee", "Oubliée", RED), ("a_rattraper", "À rattraper", "#F2A7B5")]:
+            fig.add_bar(x=w["week"], y=w[key], name=label, marker_color=color)
+        fig.update_layout(barmode="stack", yaxis_title="journées")
+        return layout(fig)
+
+    @render_plotly
+    def fig_entry_weekday():
+        e = entry()
+        if not e["by_weekday"]:
+            return empty_fig()
+        wd = e["by_weekday"]
+        fig = go.Figure()
+        fig.add_bar(x=[w["weekday"] for w in wd], y=[(w["forget_rate"] or 0) * 100 for w in wd],
+                    name="Non renseignée le jour même", marker_color=YELLOW)
+        fig.add_bar(x=[w["weekday"] for w in wd], y=[(w["missed_rate"] or 0) * 100 for w in wd],
+                    name="Oubliée définitivement", marker_color=RED)
+        fig.update_layout(barmode="group", yaxis=dict(title="%", range=[0, 100]))
+        return layout(fig)
+
+    @render_plotly
+    def fig_entry_delay():
+        e = entry()
+        dist = e["delay_distribution"]
+        if not dist:
+            return empty_fig("Aucun rattrapage")
+        fig = go.Figure(go.Bar(x=[f"{d['delay']} j" for d in dist], y=[d["count"] for d in dist], marker_color=YELLOW,
+                               text=[d["count"] for d in dist], textposition="auto"))
+        fig.update_layout(xaxis_title="jours après", yaxis_title="journées")
+        return layout(fig, 300)
+
+    @render_plotly
+    def fig_entry_calendar():
+        e = entry()
+        if not e["days"]:
+            return empty_fig()
+        code = {"a_temps": 3, "rattrapee": 2, "a_rattraper": 1, "oubliee": 0, "en_cours": None}
+        df = pd.DataFrame(e["days"])
+        df["date"] = pd.to_datetime(df["date"])
+        df["z"] = df["status"].map(code)
+        df["week"] = df["date"].dt.to_period("W").dt.start_time
+        df["dow"] = df["date"].dt.dayofweek
+        piv = df.pivot_table(index="dow", columns="week", values="z", aggfunc="first").reindex(range(7))
+        lab = df.pivot_table(index="dow", columns="week", values="status_label", aggfunc="first").reindex(range(7))
+        fig = go.Figure(go.Heatmap(
+            z=nan_to_none(piv), x=list(piv.columns), y=["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"], text=nan_to_none(lab),
+            hovertemplate="%{x|%d/%m}<br>%{text}<extra></extra>", zmin=0, zmax=3, xgap=2, ygap=2, showscale=False,
+            colorscale=[[0, RED], [0.33, RED], [0.34, "#F2A7B5"], [0.5, "#F2A7B5"], [0.51, YELLOW], [0.83, YELLOW],
+                        [0.84, GREEN], [1, GREEN]]))
+        fig.update_yaxes(autorange="reversed")
+        return layout(fig, 300)
+
+    @render.ui
+    def entry_pending():
+        e = entry()
+        if not e["pending"]:
+            return ui.p("Aucune journée à rattraper.", class_="note")
+        rows = [{"d": pd.Timestamp(p["date"]).strftime("%d/%m/%Y"), "r": p["reason"],
+                 "l": f'<span class="tag {"r" if p["days_left"] <= 1 else "y"}">'
+                      f'{"dernier jour" if p["days_left"] <= 0 else str(p["days_left"]) + " j restants"}</span>'}
+                for p in e["pending"]]
+        return table(rows, [("d", "Journée"), ("r", "Manque"), ("l", "Délai")])
 
     # Vue générale
 
@@ -426,7 +627,7 @@ def server(input, output, session):
         frame = pd.DataFrame({"z": z * 100, "dow": d.index.dayofweek, "week": d.index.to_period("W").start_time})
         piv = frame.pivot_table(index="dow", columns="week", values="z", aggfunc="mean", dropna=False)
         piv = piv.reindex(range(7))
-        fig = go.Figure(go.Heatmap(z=piv.values, x=piv.columns, y=["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
+        fig = go.Figure(go.Heatmap(z=nan_to_none(piv), x=list(piv.columns), y=["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
                                    colorscale=[[0, RED], [0.5, YELLOW], [1, GREEN]], zmin=0, zmax=100, xgap=2, ygap=2,
                                    colorbar=dict(title="%"), hoverongaps=False))
         fig.update_yaxes(autorange="reversed")
@@ -735,11 +936,12 @@ def server(input, output, session):
 
     # Prédiction
 
-    @reactive.effect
-    def _sim_choices():
+    @render.ui
+    def sim_cat_ui():
         fr = full()
         cats = sorted(set(fr.activities["category"].dropna())) if not fr.activities.empty else []
-        ui.update_selectize("sim_cat", choices=cats, selected="Python" if "Python" in cats else (cats[0] if cats else None))
+        return ui.input_selectize("sim_cat", "Activité", choices=cats, options={"create": True},
+                                  selected="Python" if "Python" in cats else (cats[0] if cats else None))
 
     @reactive.calc
     @reactive.event(input.sim_go, ignore_none=False)
