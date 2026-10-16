@@ -227,7 +227,7 @@ function bindVoice(id, moment, onText) {
   }
 }
 
-/* Export Excel : le fichier est téléchargé avec le code PIN éventuel. */
+/* Export Excel : le fichier est téléchargé avec la session de connexion. */
 function exportBlock(id) {
   return `<div id="${id}">
     <label>${tr("Période")}</label><select data-x="period">
