@@ -108,10 +108,35 @@ def manifest():
     return FileResponse(FRONTEND / "manifest.json", media_type="application/manifest+json")
 
 
+ASSETS = ("style.css", "i18n_en.js", "i18n.js", "app.js")
+
+
+def _versioned(html: str) -> str:
+    """Ajoute à chaque fichier de l'interface un numéro de version tiré de sa date de modification.
+
+    Le téléphone télécharge ainsi toujours la version présente sur le PC, au lieu de réutiliser
+    une ancienne copie gardée dans le cache du navigateur.
+    """
+    for name in ASSETS:
+        version = int((FRONTEND / "src" / name).stat().st_mtime)
+        html = html.replace(f'"/src/{name}"', f'"/src/{name}?v={version}"')
+    return html
+
+
 @app.get("/", include_in_schema=False)
 def index():
     html = (FRONTEND / "index.html").read_text(encoding="utf-8")
-    return HTMLResponse(html.replace("<!--ICON_SPRITE-->", icons.sprite()), headers={"Cache-Control": "no-cache"})
+    html = _versioned(html.replace("<!--ICON_SPRITE-->", icons.sprite()))
+    return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
 
 
-app.mount("/src", StaticFiles(directory=FRONTEND / "src"), name="src")
+class FrontendFiles(StaticFiles):
+    """Fichiers de l'interface : le navigateur doit vérifier auprès du PC avant de réutiliser sa copie."""
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
+app.mount("/src", FrontendFiles(directory=FRONTEND / "src"), name="src")

@@ -309,3 +309,17 @@ def test_excel_export(client):
     assert q.max_row == 31  # en-tête + 30 jours
     assert str(q["D2"].value).startswith("=COUNTIFS(")  # indicateurs calculés par formules
     assert wb["Synthese"]["B11"].value.startswith("=IFERROR(SUM(")
+
+
+def test_frontend_never_served_from_stale_cache(client):
+    """Le téléphone doit toujours charger l'interface présente sur le PC (jamais une ancienne copie)."""
+    import re
+
+    page = client.get("/")
+    assert page.headers["cache-control"] == "no-cache"
+    for name in ["style.css", "i18n_en.js", "i18n.js", "app.js"]:
+        match = re.search(rf'"/src/{re.escape(name)}\?v=(\d+)"', page.text)
+        assert match, name
+        asset = client.get(f"/src/{name}?v={match.group(1)}")
+        assert asset.status_code == 200 and asset.headers["cache-control"] == "no-cache"
+    assert "code PIN" not in client.get("/src/app.js").text
