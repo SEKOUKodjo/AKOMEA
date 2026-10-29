@@ -1,0 +1,247 @@
+POWER QUERY QUERIES OF THE ISTS REPORT (already embedded in the workbooks)
+==========================================================================
+To see them in Excel: Data > Queries & Connections, double-click a query.
+
+section Section1;
+
+shared Parameters = [
+    Folder = "C:\ISTS_REPORT\CSV",
+    TransportFile = null,
+    RejectionsFile = null,
+    Separator = ",",
+    ReportMonth = null,
+    Level = "Auto"
+];
+
+shared Transport = let
+    P = Parameters,
+    SourceFolder = P[Folder] & "\TRANSPORT",
+    Files = if P[TransportFile] <> null then null else Table.Sort(Table.SelectRows(Folder.Files(SourceFolder), each Text.Lower([Extension]) = ".csv"), {{"Date modified", Order.Descending}}),
+    Binary = if P[TransportFile] <> null then File.Contents(P[TransportFile]) else if Table.IsEmpty(Files) then error Error.Record("Missing CSV file", "No .csv file found in folder " & SourceFolder) else Files{0}[Content],
+    Source = Csv.Document(Binary, [Delimiter = P[Separator], Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+    Headers = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+    Columns = Table.SelectColumns(Headers, {"region", "health_district", "health_facility", "site", "date", "vl_samples", "eid_samples", "tb_samples", "vl_results", "eid_results", "tb_results", "trips", "other_item_name", "other_item_qty", "duration_from_collection_days", "duration_in_hub1_days", "duration_in_hub2_days", "duration_reception_to_pickup_days", "action", "custom_month"}, MissingField.UseNull),
+    Blanks = Table.ReplaceValue(Columns, "", null, Replacer.ReplaceValue, Table.ColumnNames(Columns)),
+    Texts = Table.TransformColumns(Blanks, {{"region", Text.Trim, type text}, {"health_district", Text.Trim, type text}, {"health_facility", Text.Trim, type text}, {"site", Text.Trim, type text}, {"action", Text.Trim, type text}, {"custom_month", Text.Trim, type text}, {"other_item_name", Text.Trim, type text}}),
+    Numbers = Table.TransformColumnTypes(Texts, List.Transform({"vl_samples", "eid_samples", "tb_samples", "vl_results", "eid_results", "tb_results", "trips", "other_item_qty", "duration_from_collection_days", "duration_in_hub1_days", "duration_in_hub2_days", "duration_reception_to_pickup_days"}, each {_, type number}), "en-US"),
+    Dates = Table.TransformColumns(Numbers, {{"date", each if _ = null then null else try Date.FromText(Text.Start(Text.From(_), 10), "en-US") otherwise null, type date}}),
+    WithPeriod = Table.AddColumn(Dates, "Period", each
+        let
+            cm = if [custom_month] = null then "" else [custom_month],
+            fin = if Text.Length(cm) >= 10 then (try Date.FromText(Text.End(cm, 10), "en-US") otherwise null) else null,
+            ref = if fin <> null then fin else if [date] = null then null else if Date.Day([date]) > 25 then Date.AddMonths([date], 1) else [date]
+        in
+            if ref = null then null else Date.StartOfMonth(ref), type date),
+    Final = Table.SelectColumns(WithPeriod, {"Period", "region", "health_district", "health_facility", "site", "date", "vl_samples", "eid_samples", "tb_samples", "vl_results", "eid_results", "tb_results", "trips", "other_item_name", "other_item_qty", "duration_from_collection_days", "duration_in_hub1_days", "duration_in_hub2_days", "duration_reception_to_pickup_days", "action", "custom_month"})
+in
+    Final;
+
+shared Rejections = let
+    P = Parameters,
+    SourceFolder = P[Folder] & "\REJECTIONS",
+    Files = if P[RejectionsFile] <> null then null else Table.Sort(Table.SelectRows(Folder.Files(SourceFolder), each Text.Lower([Extension]) = ".csv"), {{"Date modified", Order.Descending}}),
+    Binary = if P[RejectionsFile] <> null then File.Contents(P[RejectionsFile]) else if Table.IsEmpty(Files) then error Error.Record("Missing CSV file", "No .csv file found in folder " & SourceFolder) else Files{0}[Content],
+    Source = Csv.Document(Binary, [Delimiter = P[Separator], Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+    Headers = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+    Columns = Table.SelectColumns(Headers, {"region", "health_district", "health_facility", "site", "date", "vl_rejected", "eid_rejected", "tb_rejected", "total_rejected", "reason_haemolysed", "reason_insufficient_volume", "reason_poorly_conserved", "reason_clotted", "reason_illegible_label", "reason_empty_spilled", "reason_no_label", "reason_prolonged_storage", "reason_no_request_form", "reason_analytical_error", "reason_poor_packaging", "reason_unmatched_info", "reason_wrong_code", "reason_wrong_form", "reason_other_reason", "transporter", "custom_month"}, MissingField.UseNull),
+    Blanks = Table.ReplaceValue(Columns, "", null, Replacer.ReplaceValue, Table.ColumnNames(Columns)),
+    Texts = Table.TransformColumns(Blanks, {{"region", Text.Trim, type text}, {"health_district", Text.Trim, type text}, {"health_facility", Text.Trim, type text}, {"site", Text.Trim, type text}, {"transporter", Text.Trim, type text}, {"custom_month", Text.Trim, type text}}),
+    Numbers = Table.TransformColumnTypes(Texts, List.Transform({"vl_rejected", "eid_rejected", "tb_rejected", "total_rejected", "reason_haemolysed", "reason_insufficient_volume", "reason_poorly_conserved", "reason_clotted", "reason_illegible_label", "reason_empty_spilled", "reason_no_label", "reason_prolonged_storage", "reason_no_request_form", "reason_analytical_error", "reason_poor_packaging", "reason_unmatched_info", "reason_wrong_code", "reason_wrong_form", "reason_other_reason"}, each {_, type number}), "en-US"),
+    Dates = Table.TransformColumns(Numbers, {{"date", each if _ = null then null else try Date.FromText(Text.Start(Text.From(_), 10), "en-US") otherwise null, type date}}),
+    WithPeriod = Table.AddColumn(Dates, "Period", each
+        let
+            cm = if [custom_month] = null then "" else [custom_month],
+            fin = if Text.Length(cm) >= 10 then (try Date.FromText(Text.End(cm, 10), "en-US") otherwise null) else null,
+            ref = if fin <> null then fin else if [date] = null then null else if Date.Day([date]) > 25 then Date.AddMonths([date], 1) else [date]
+        in
+            if ref = null then null else Date.StartOfMonth(ref), type date),
+    Final = Table.SelectColumns(WithPeriod, {"Period", "region", "health_district", "health_facility", "site", "date", "vl_rejected", "eid_rejected", "tb_rejected", "total_rejected", "reason_haemolysed", "reason_insufficient_volume", "reason_poorly_conserved", "reason_clotted", "reason_illegible_label", "reason_empty_spilled", "reason_no_label", "reason_prolonged_storage", "reason_no_request_form", "reason_analytical_error", "reason_poor_packaging", "reason_unmatched_info", "reason_wrong_code", "reason_wrong_form", "reason_other_reason", "transporter", "custom_month"})
+in
+    Final;
+
+shared Q_Regions = let
+    Col = Table.SelectColumns(Transport, {"region"}),
+    NonBlank = Table.SelectRows(Col, each [region] <> null and [region] <> ""),
+    Unique = Table.Distinct(NonBlank, {"region", Comparer.OrdinalIgnoreCase}),
+    Sorted = Table.Sort(Unique, {{"region", Order.Ascending}}),
+    Final = Table.RenameColumns(Sorted, {{"region", "Zone"}})
+in
+    Final;
+
+shared Q_Districts = let
+    Col = Table.SelectColumns(Transport, {"health_district"}),
+    NonBlank = Table.SelectRows(Col, each [health_district] <> null and [health_district] <> ""),
+    Unique = Table.Distinct(NonBlank, {"health_district", Comparer.OrdinalIgnoreCase}),
+    Sorted = Table.Sort(Unique, {{"health_district", Order.Ascending}}),
+    Final = Table.RenameColumns(Sorted, {{"health_district", "Zone"}})
+in
+    Final;
+
+shared Q_Coverage = let
+    F = Table.SelectRows(Transport, each [Period] <> null and [health_facility] <> null),
+    G = Table.Group(F, {"Period", "region", "health_district", "site"}, {{"nb_fosa", each List.Count(List.Distinct([health_facility], Comparer.OrdinalIgnoreCase)), Int64.Type}})
+in
+    G;
+
+shared Q_HF_Total = let
+    F = Table.SelectRows(Transport, each [health_facility] <> null),
+    G = Table.Group(F, {"region", "health_district", "site"}, {{"nb_fosa", each List.Count(List.Distinct([health_facility], Comparer.OrdinalIgnoreCase)), Int64.Type}})
+in
+    G;
+
+shared Rejections_HF = let
+    P = Parameters,
+    Reasons = {{"reason_haemolysed", "Haemolysed samples"}, {"reason_insufficient_volume", "Insufficient sample volume"}, {"reason_poorly_conserved", "Poorly conserved samples"}, {"reason_clotted", "Clotted samples"}, {"reason_illegible_label", "Illegible label"}, {"reason_empty_spilled", "Empty sample tubes/spilled sample"}, {"reason_no_label", "Sample lacking an identification (MPI) code / no label"}, {"reason_prolonged_storage", "Prolonged storage"}, {"reason_no_request_form", "No request form"}, {"reason_analytical_error", "Analytical / Manipulation error"}, {"reason_poor_packaging", "Poor packaging"}, {"reason_unmatched_info", "Unmatched information"}, {"reason_wrong_code", "Wrong code"}, {"reason_wrong_form", "Wrong form"}, {"reason_other_reason", "Other reason"}},
+    Month = if P[ReportMonth] <> null then P[ReportMonth] else List.Max(Rejections[Period]),
+    F = Table.SelectRows(Rejections, each [Period] = Month),
+    G = Table.Group(F, {"region", "health_district", "health_facility", "site"}, {
+        {"VL samples", each List.Sum([vl_rejected]), type nullable number},
+        {"EID samples", each List.Sum([eid_rejected]), type nullable number},
+        {"TB samples", each List.Sum([tb_rejected]), type nullable number},
+        {"Total", each List.Sum([total_rejected]), type nullable number},
+        {"Reasons for rejection", (t) => Text.Combine(List.RemoveNulls(List.Transform(Reasons, (r) => let n = List.Sum(Table.Column(t, r{0})) in if n = null or n = 0 then null else r{1} & " (" & Text.From(n) & ")")), "; "), type text}}),
+    Sorted = Table.Sort(G, {{"region", Order.Ascending}, {"Total", Order.Descending}}),
+    Final = Table.RenameColumns(Sorted, {{"region", "Region"}, {"health_district", "District"}, {"health_facility", "Health facility"}, {"site", "Site"}})
+in
+    Final;
+
+shared Supplies_HF = let
+    P = Parameters,
+    Month = if P[ReportMonth] <> null then P[ReportMonth] else List.Max(Transport[Period]),
+    F = Table.SelectRows(Transport, each [Period] = Month and [other_item_name] <> null and [other_item_qty] <> null and [other_item_qty] <> 0),
+    G = Table.Group(F, {"region", "health_district", "health_facility", "other_item_name"}, {{"qty", each List.Sum([other_item_qty]), type number}}),
+    Items = List.Sort(List.Distinct(G[other_item_name])),
+    Pivot = Table.Pivot(G, Items, "other_item_name", "qty", List.Sum),
+    WithTotal = Table.AddColumn(Pivot, "Total", each List.Sum(List.RemoveNulls(Record.ToList(Record.SelectFields(_, Items)))), type number),
+    Sorted = Table.Sort(WithTotal, {{"region", Order.Ascending}, {"health_district", Order.Ascending}, {"health_facility", Order.Ascending}}),
+    Final = Table.RenameColumns(Sorted, {{"region", "Region"}, {"health_district", "District"}, {"health_facility", "Health facility"}})
+in
+    Final;
+
+shared G_VLS = let
+    P = Parameters,
+    T = Transport,
+    Niv = if P[Level] = "Region" then "region" else if P[Level] = "District" then "health_district"
+          else if List.Count(List.Distinct(List.RemoveNulls(T[region]), Comparer.OrdinalIgnoreCase)) > 1 then "region" else "health_district",
+    Month = if P[ReportMonth] <> null then P[ReportMonth] else List.Max(T[Period]),
+    PrevMonth = Date.AddMonths(Month, -1),
+    Z = Table.SelectRows(Table.AddColumn(T, "Zone", each Record.Field(_, Niv)), each [Zone] <> null and [Zone] <> ""),
+    IsPepfar = (r) => Text.Upper(if r[site] = null then "" else r[site]) = "PEPFAR",
+    G = Table.Group(Z, {"Zone"}, {
+        {"Prev", (t) => List.Sum(Table.SelectRows(t, each [Period] = PrevMonth and IsPepfar(_))[vl_samples]), type nullable number},
+        {"Cur", (t) => List.Sum(Table.SelectRows(t, each [Period] = Month and IsPepfar(_))[vl_samples]), type nullable number}}),
+    NoNulls = Table.TransformColumns(G, {{"Prev", each if _ = null then 0 else _, type number}, {"Cur", each if _ = null then 0 else _, type number}}),
+    Sorted = Table.Sort(NoNulls, {{"Cur", Order.Descending}, {"Zone", Order.Ascending}}),
+    Final = Table.FirstN(Sorted, 40)
+in
+    Final;
+
+shared G_VLR = let
+    P = Parameters,
+    T = Transport,
+    Niv = if P[Level] = "Region" then "region" else if P[Level] = "District" then "health_district"
+          else if List.Count(List.Distinct(List.RemoveNulls(T[region]), Comparer.OrdinalIgnoreCase)) > 1 then "region" else "health_district",
+    Month = if P[ReportMonth] <> null then P[ReportMonth] else List.Max(T[Period]),
+    PrevMonth = Date.AddMonths(Month, -1),
+    Z = Table.SelectRows(Table.AddColumn(T, "Zone", each Record.Field(_, Niv)), each [Zone] <> null and [Zone] <> ""),
+    IsPepfar = (r) => Text.Upper(if r[site] = null then "" else r[site]) = "PEPFAR",
+    G = Table.Group(Z, {"Zone"}, {
+        {"Prev", (t) => List.Sum(Table.SelectRows(t, each [Period] = PrevMonth and IsPepfar(_))[vl_results]), type nullable number},
+        {"Cur", (t) => List.Sum(Table.SelectRows(t, each [Period] = Month and IsPepfar(_))[vl_results]), type nullable number}}),
+    NoNulls = Table.TransformColumns(G, {{"Prev", each if _ = null then 0 else _, type number}, {"Cur", each if _ = null then 0 else _, type number}}),
+    Sorted = Table.Sort(NoNulls, {{"Cur", Order.Descending}, {"Zone", Order.Ascending}}),
+    Final = Table.FirstN(Sorted, 40)
+in
+    Final;
+
+shared G_EIDS = let
+    P = Parameters,
+    T = Transport,
+    Niv = if P[Level] = "Region" then "region" else if P[Level] = "District" then "health_district"
+          else if List.Count(List.Distinct(List.RemoveNulls(T[region]), Comparer.OrdinalIgnoreCase)) > 1 then "region" else "health_district",
+    Month = if P[ReportMonth] <> null then P[ReportMonth] else List.Max(T[Period]),
+    PrevMonth = Date.AddMonths(Month, -1),
+    Z = Table.SelectRows(Table.AddColumn(T, "Zone", each Record.Field(_, Niv)), each [Zone] <> null and [Zone] <> ""),
+    IsPepfar = (r) => Text.Upper(if r[site] = null then "" else r[site]) = "PEPFAR",
+    G = Table.Group(Z, {"Zone"}, {
+        {"Prev", (t) => List.Sum(Table.SelectRows(t, each [Period] = PrevMonth and IsPepfar(_))[eid_samples]), type nullable number},
+        {"Cur", (t) => List.Sum(Table.SelectRows(t, each [Period] = Month and IsPepfar(_))[eid_samples]), type nullable number}}),
+    NoNulls = Table.TransformColumns(G, {{"Prev", each if _ = null then 0 else _, type number}, {"Cur", each if _ = null then 0 else _, type number}}),
+    Sorted = Table.Sort(NoNulls, {{"Cur", Order.Descending}, {"Zone", Order.Ascending}}),
+    Final = Table.FirstN(Sorted, 40)
+in
+    Final;
+
+shared G_EIDR = let
+    P = Parameters,
+    T = Transport,
+    Niv = if P[Level] = "Region" then "region" else if P[Level] = "District" then "health_district"
+          else if List.Count(List.Distinct(List.RemoveNulls(T[region]), Comparer.OrdinalIgnoreCase)) > 1 then "region" else "health_district",
+    Month = if P[ReportMonth] <> null then P[ReportMonth] else List.Max(T[Period]),
+    PrevMonth = Date.AddMonths(Month, -1),
+    Z = Table.SelectRows(Table.AddColumn(T, "Zone", each Record.Field(_, Niv)), each [Zone] <> null and [Zone] <> ""),
+    IsPepfar = (r) => Text.Upper(if r[site] = null then "" else r[site]) = "PEPFAR",
+    G = Table.Group(Z, {"Zone"}, {
+        {"Prev", (t) => List.Sum(Table.SelectRows(t, each [Period] = PrevMonth and IsPepfar(_))[eid_results]), type nullable number},
+        {"Cur", (t) => List.Sum(Table.SelectRows(t, each [Period] = Month and IsPepfar(_))[eid_results]), type nullable number}}),
+    NoNulls = Table.TransformColumns(G, {{"Prev", each if _ = null then 0 else _, type number}, {"Cur", each if _ = null then 0 else _, type number}}),
+    Sorted = Table.Sort(NoNulls, {{"Cur", Order.Descending}, {"Zone", Order.Ascending}}),
+    Final = Table.FirstN(Sorted, 40)
+in
+    Final;
+
+shared G_TBS = let
+    P = Parameters,
+    T = Transport,
+    Niv = if P[Level] = "Region" then "region" else if P[Level] = "District" then "health_district"
+          else if List.Count(List.Distinct(List.RemoveNulls(T[region]), Comparer.OrdinalIgnoreCase)) > 1 then "region" else "health_district",
+    Month = if P[ReportMonth] <> null then P[ReportMonth] else List.Max(T[Period]),
+    PrevMonth = Date.AddMonths(Month, -1),
+    Z = Table.SelectRows(Table.AddColumn(T, "Zone", each Record.Field(_, Niv)), each [Zone] <> null and [Zone] <> ""),
+    IsPepfar = (r) => Text.Upper(if r[site] = null then "" else r[site]) = "PEPFAR",
+    G = Table.Group(Z, {"Zone"}, {
+        {"Prev", (t) => List.Sum(Table.SelectRows(t, each [Period] = PrevMonth and IsPepfar(_))[tb_samples]), type nullable number},
+        {"Cur", (t) => List.Sum(Table.SelectRows(t, each [Period] = Month and IsPepfar(_))[tb_samples]), type nullable number}}),
+    NoNulls = Table.TransformColumns(G, {{"Prev", each if _ = null then 0 else _, type number}, {"Cur", each if _ = null then 0 else _, type number}}),
+    Sorted = Table.Sort(NoNulls, {{"Cur", Order.Descending}, {"Zone", Order.Ascending}}),
+    Final = Table.FirstN(Sorted, 40)
+in
+    Final;
+
+shared G_TBR = let
+    P = Parameters,
+    T = Transport,
+    Niv = if P[Level] = "Region" then "region" else if P[Level] = "District" then "health_district"
+          else if List.Count(List.Distinct(List.RemoveNulls(T[region]), Comparer.OrdinalIgnoreCase)) > 1 then "region" else "health_district",
+    Month = if P[ReportMonth] <> null then P[ReportMonth] else List.Max(T[Period]),
+    PrevMonth = Date.AddMonths(Month, -1),
+    Z = Table.SelectRows(Table.AddColumn(T, "Zone", each Record.Field(_, Niv)), each [Zone] <> null and [Zone] <> ""),
+    IsPepfar = (r) => Text.Upper(if r[site] = null then "" else r[site]) = "PEPFAR",
+    G = Table.Group(Z, {"Zone"}, {
+        {"Prev", (t) => List.Sum(Table.SelectRows(t, each [Period] = PrevMonth and IsPepfar(_))[tb_results]), type nullable number},
+        {"Cur", (t) => List.Sum(Table.SelectRows(t, each [Period] = Month and IsPepfar(_))[tb_results]), type nullable number}}),
+    NoNulls = Table.TransformColumns(G, {{"Prev", each if _ = null then 0 else _, type number}, {"Cur", each if _ = null then 0 else _, type number}}),
+    Sorted = Table.Sort(NoNulls, {{"Cur", Order.Descending}, {"Zone", Order.Ascending}}),
+    Final = Table.FirstN(Sorted, 40)
+in
+    Final;
+
+shared G_TAT = let
+    P = Parameters,
+    T = Transport,
+    Niv = if P[Level] = "Region" then "region" else if P[Level] = "District" then "health_district"
+          else if List.Count(List.Distinct(List.RemoveNulls(T[region]), Comparer.OrdinalIgnoreCase)) > 1 then "region" else "health_district",
+    Month = if P[ReportMonth] <> null then P[ReportMonth] else List.Max(T[Period]),
+    PrevMonth = Date.AddMonths(Month, -1),
+    Z = Table.SelectRows(Table.AddColumn(T, "Zone", each Record.Field(_, Niv)), each [Zone] <> null and [Zone] <> ""),
+    IsPepfar = (r) => Text.Upper(if r[site] = null then "" else r[site]) = "PEPFAR",
+    G = Table.Group(Z, {"Zone"}, {
+        {"Collection", (t) => let l = List.RemoveNulls(Table.SelectRows(t, each [Period] = Month)[duration_from_collection_days]) in if List.IsEmpty(l) then 0 else List.Average(l), type number},
+        {"Hub1", (t) => let l = List.RemoveNulls(Table.SelectRows(t, each [Period] = Month)[duration_in_hub1_days]) in if List.IsEmpty(l) then 0 else List.Average(l), type number},
+        {"Hub2", (t) => let l = List.RemoveNulls(Table.SelectRows(t, each [Period] = Month)[duration_in_hub2_days]) in if List.IsEmpty(l) then 0 else List.Average(l), type number},
+        {"Reception_Pickup", (t) => let l = List.RemoveNulls(Table.SelectRows(t, each [Period] = Month)[duration_reception_to_pickup_days]) in if List.IsEmpty(l) then 0 else List.Average(l), type number}}),
+    Total = Table.AddColumn(G, "Total", each [Collection] + [Hub1] + [Hub2] + [Reception_Pickup], type number),
+    Sorted = Table.Sort(Total, {{"Total", Order.Descending}, {"Zone", Order.Ascending}}),
+    Final = Table.FirstN(Sorted, 40)
+in
+    Final;
